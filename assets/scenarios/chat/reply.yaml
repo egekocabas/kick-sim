@@ -1,0 +1,25 @@
+version: 1
+name: Chat reply
+description: A viewer replies to an earlier chat message.
+request:
+  event:
+    type: chat.message.sent
+    version: 1
+  payload:
+    replies_to:
+      message_id: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+      content: Original message
+      sender:
+        is_anonymous: false
+        user_id: 12345
+        username: original_viewer
+        is_verified: false
+        profile_picture: https://example.invalid/kick-sim/original_viewer.png
+        channel_slug: original-viewer
+        identity: null
+    content: This is a reply
+  delivery:
+    mode: direct
+    destination: local
+    expect:
+      statuses: [200, 202, 204]

@@ -1,0 +1,21 @@
+version: 1
+name: Subscriber message
+description: A subscriber sends a chat message.
+request:
+  event:
+    type: chat.message.sent
+    version: 1
+  payload:
+    sender:
+      identity:
+        username_color: "#E5FF00"
+        badges:
+          - type: subscriber
+            text: Subscriber
+            count: 4
+    content: Happy to be here!
+  delivery:
+    mode: direct
+    destination: local
+    expect:
+      statuses: [200, 202, 204]

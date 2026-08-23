@@ -1,0 +1,28 @@
+{
+  "message_id": "{{ ulid() }}",
+  "replies_to": null,
+  "broadcaster": {
+    "is_anonymous": false,
+    "user_id": 123456789,
+    "username": "test_streamer",
+    "is_verified": false,
+    "profile_picture": "https://example.invalid/kick-sim/test_streamer.png",
+    "channel_slug": "test-streamer",
+    "identity": null
+  },
+  "sender": {
+    "is_anonymous": false,
+    "user_id": 987654321,
+    "username": "test_viewer",
+    "is_verified": false,
+    "profile_picture": "https://example.invalid/kick-sim/test_viewer.png",
+    "channel_slug": "test-viewer",
+    "identity": {
+      "username_color": "#FFFFFF",
+      "badges": []
+    }
+  },
+  "content": "Hello from Kick Sim",
+  "emotes": [],
+  "created_at": "{{ now() }}"
+}

@@ -49,7 +49,11 @@ func TestKeyPEMRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	parsedPrivate, err := ParsePrivateKey(MarshalPrivateKey(privateKey))
+	privatePEM, err := MarshalPrivateKey(privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsedPrivate, err := ParsePrivateKey(privatePEM)
 	if err != nil {
 		t.Fatal(err)
 	}

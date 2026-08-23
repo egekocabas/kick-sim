@@ -1,0 +1,22 @@
+version: 1
+name: Moderator message
+description: A moderator sends a chat message.
+request:
+  event:
+    type: chat.message.sent
+    version: 1
+  payload:
+    sender:
+      username: test_moderator
+      channel_slug: test-moderator
+      identity:
+        username_color: "#53FC18"
+        badges:
+          - type: moderator
+            text: Moderator
+    content: Please follow the rules.
+  delivery:
+    mode: direct
+    destination: local
+    expect:
+      statuses: [200, 202, 204]

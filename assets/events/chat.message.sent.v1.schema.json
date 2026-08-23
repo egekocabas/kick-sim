@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kick-sim.local/events/chat.message.sent/1",
+  "title": "chat.message.sent@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["message_id", "replies_to", "broadcaster", "sender", "content", "emotes", "created_at"],
+  "properties": {
+    "message_id": {"type": "string", "minLength": 1},
+    "replies_to": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/reply"}
+      ]
+    },
+    "broadcaster": {"$ref": "#/$defs/user"},
+    "sender": {"$ref": "#/$defs/user"},
+    "content": {"type": "string"},
+    "emotes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/emote"}
+    },
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "type"],
+      "properties": {
+        "text": {"type": "string"},
+        "type": {"type": "string"},
+        "count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["username_color", "badges"],
+      "properties": {
+        "username_color": {"type": "string"},
+        "badges": {"type": "array", "items": {"$ref": "#/$defs/badge"}}
+      }
+    },
+    "user": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["is_anonymous", "user_id", "username", "is_verified", "profile_picture", "channel_slug", "identity"],
+      "properties": {
+        "is_anonymous": {"type": "boolean"},
+        "user_id": {"type": ["integer", "null"]},
+        "username": {"type": ["string", "null"]},
+        "is_verified": {"type": ["boolean", "null"]},
+        "profile_picture": {"type": ["string", "null"]},
+        "channel_slug": {"type": ["string", "null"]},
+        "identity": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/identity"}
+          ]
+        }
+      }
+    },
+    "reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["message_id", "content", "sender"],
+      "properties": {
+        "message_id": {"type": "string", "minLength": 1},
+        "content": {"type": "string"},
+        "sender": {"$ref": "#/$defs/user"}
+      }
+    },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["s", "e"],
+      "properties": {
+        "s": {"type": "integer", "minimum": 0},
+        "e": {"type": "integer", "minimum": 0}
+      }
+    },
+    "emote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["emote_id", "positions"],
+      "properties": {
+        "emote_id": {"type": "string", "minLength": 1},
+        "positions": {"type": "array", "items": {"$ref": "#/$defs/position"}}
+      }
+    }
+  }
+}

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -30,6 +31,9 @@ func SignatureInput(messageID, timestamp string, body []byte) []byte {
 }
 
 func Sign(privateKey *rsa.PrivateKey, messageID, timestamp string, body []byte) (string, error) {
+	if privateKey == nil {
+		return "", errors.New("simulator private key is required")
+	}
 	digest := sha256.Sum256(SignatureInput(messageID, timestamp, body))
 	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, digest[:])
 	if err != nil {
@@ -39,6 +43,9 @@ func Sign(privateKey *rsa.PrivateKey, messageID, timestamp string, body []byte) 
 }
 
 func Verify(publicKey *rsa.PublicKey, messageID, timestamp string, body []byte, encodedSignature string) error {
+	if publicKey == nil {
+		return errors.New("simulator public key is required")
+	}
 	signature, err := base64.StdEncoding.DecodeString(encodedSignature)
 	if err != nil {
 		return fmt.Errorf("decode webhook signature: %w", err)
@@ -51,11 +58,12 @@ func Verify(publicKey *rsa.PublicKey, messageID, timestamp string, body []byte, 
 	return nil
 }
 
-func MarshalPrivateKey(privateKey *rsa.PrivateKey) []byte {
-	return pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-	})
+func MarshalPrivateKey(privateKey *rsa.PrivateKey) ([]byte, error) {
+	der, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("marshal private key: %w", err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}), nil
 }
 
 func MarshalPublicKey(publicKey *rsa.PublicKey) ([]byte, error) {
@@ -84,14 +92,37 @@ func ReadPublicKey(path string) (*rsa.PublicKey, error) {
 
 func ParsePrivateKey(data []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(data)
-	if block == nil || block.Type != "RSA PRIVATE KEY" {
-		return nil, errors.New("private key must be PEM-encoded RSA PRIVATE KEY")
+	if block == nil {
+		return nil, errors.New("private key must be PEM encoded")
 	}
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if block.Type == "RSA PRIVATE KEY" {
+		privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("parse PKCS#1 private key: %w", err)
+		}
+		return privateKey, nil
+	}
+	if block.Type != "PRIVATE KEY" {
+		return nil, errors.New("private key must be PEM-encoded PRIVATE KEY")
+	}
+	parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("parse private key: %w", err)
+		return nil, fmt.Errorf("parse PKCS#8 private key: %w", err)
+	}
+	privateKey, ok := parsed.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("private key is not RSA")
 	}
 	return privateKey, nil
+}
+
+func Fingerprint(publicKey *rsa.PublicKey) (string, error) {
+	der, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		return "", fmt.Errorf("marshal public key for fingerprint: %w", err)
+	}
+	digest := sha256.Sum256(der)
+	return "SHA256:" + hex.EncodeToString(digest[:]), nil
 }
 
 func ParsePublicKey(data []byte) (*rsa.PublicKey, error) {

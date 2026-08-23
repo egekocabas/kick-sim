@@ -1,0 +1,14 @@
+version: 1
+name: Basic chat message
+description: A viewer sends a plain chat message.
+request:
+  event:
+    type: chat.message.sent
+    version: 1
+  payload:
+    content: Hello from Kick Sim
+  delivery:
+    mode: direct
+    destination: local
+    expect:
+      statuses: [200, 202, 204]

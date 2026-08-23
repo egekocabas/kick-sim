@@ -20,6 +20,7 @@ const (
 	HeaderTimestamp      = "Kick-Event-Message-Timestamp"
 	HeaderEventType      = "Kick-Event-Type"
 	HeaderEventVersion   = "Kick-Event-Version"
+	HeaderSimulator      = "Kick-Simulator"
 
 	maxResponseBody = 64 * 1024
 )
@@ -55,6 +56,7 @@ func Send(ctx context.Context, client *http.Client, destination string, metadata
 	request.Header.Set(HeaderTimestamp, metadata.Timestamp)
 	request.Header.Set(HeaderEventType, metadata.EventType)
 	request.Header.Set(HeaderEventVersion, metadata.EventVersion)
+	request.Header.Set(HeaderSimulator, "kick-sim")
 
 	if client == nil {
 		client = NewLoopbackClient(10 * time.Second)
@@ -72,9 +74,6 @@ func Send(ctx context.Context, client *http.Client, destination string, metadata
 	result.ResponseBody, err = io.ReadAll(io.LimitReader(response.Body, maxResponseBody))
 	if err != nil {
 		return result, fmt.Errorf("read webhook response: %w", err)
-	}
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return result, fmt.Errorf("webhook receiver returned HTTP %d", response.StatusCode)
 	}
 	return result, nil
 }

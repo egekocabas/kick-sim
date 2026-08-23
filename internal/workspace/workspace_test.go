@@ -55,11 +55,100 @@ func TestInitCreatesProtectedKeyPairWithoutOverwriting(t *testing.T) {
 		t.Fatal("second Init() changed the existing private key")
 	}
 
-	gitignore, err := os.ReadFile(filepath.Join(root, "keys", ".gitignore"))
+	gitignore, err := os.ReadFile(filepath.Join(root, ".gitignore"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(gitignore) != "private-key.pem\n" {
-		t.Fatalf("keys .gitignore = %q", gitignore)
+	if string(gitignore) != "/keys/private-key.pem\n/.runtime/\n" {
+		t.Fatalf("workspace .gitignore = %q", gitignore)
+	}
+}
+
+func TestResolveUsesExplicitEnvironmentAndNearestWorkspace(t *testing.T) {
+	base := t.TempDir()
+	nearest := filepath.Join(base, ".kick-sim")
+	if err := os.Mkdir(nearest, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	nested := filepath.Join(base, "src", "handler")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	resolved, err := Resolve(ResolveOptions{Start: nested})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved != nearest {
+		t.Fatalf("nearest workspace = %q, want %q", resolved, nearest)
+	}
+
+	environment := filepath.Join(base, "environment")
+	t.Setenv(EnvironmentVariable, environment)
+	resolved, err = Resolve(ResolveOptions{Start: nested})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved != environment {
+		t.Fatalf("environment workspace = %q, want %q", resolved, environment)
+	}
+
+	explicit := filepath.Join(base, "explicit")
+	resolved, err = Resolve(ResolveOptions{Explicit: explicit, Start: nested})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved != explicit {
+		t.Fatalf("explicit workspace = %q, want %q", resolved, explicit)
+	}
+}
+
+func TestInitPreservesExistingGitIgnoreRules(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("custom-rule\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Init(root); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "custom-rule\n/keys/private-key.pem\n/.runtime/\n"
+	if string(data) != want {
+		t.Fatalf(".gitignore = %q, want %q", data, want)
+	}
+}
+
+func TestRotateKeysReplacesMatchingPair(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	paths, err := Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(paths.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := RotateKeys(root); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(paths.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(before, after) {
+		t.Fatal("RotateKeys() did not replace the public key")
+	}
+	if err := Validate(root); err != nil {
+		t.Fatal(err)
 	}
 }

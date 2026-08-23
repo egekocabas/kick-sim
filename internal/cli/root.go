@@ -2,128 +2,134 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
-	"time"
+	"strings"
 
-	"github.com/egekocabas/kick-sim/internal/signing"
-	"github.com/egekocabas/kick-sim/internal/simulator"
+	"github.com/egekocabas/kick-sim/internal/app"
 	"github.com/egekocabas/kick-sim/internal/workspace"
 	"github.com/spf13/cobra"
 )
 
-func Execute() error {
-	return NewRootCommand(os.Stdout, os.Stderr).Execute()
+const (
+	exitGeneral   = 1
+	exitUsage     = 2
+	exitWorkspace = 3
+	exitScenario  = 4
+	exitDelivery  = 5
+)
+
+type exitError struct {
+	code int
+	err  error
+}
+
+func (err *exitError) Error() string { return err.err.Error() }
+func (err *exitError) Unwrap() error { return err.err }
+
+type environment struct {
+	stdout        io.Writer
+	stderr        io.Writer
+	workspaceFlag string
+	output        string
+	verbose       bool
+	start         string
+}
+
+func Execute() int {
+	command := NewRootCommand(os.Stdout, os.Stderr)
+	if err := command.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return errorCode(err)
+	}
+	return 0
 }
 
 func NewRootCommand(stdout, stderr io.Writer) *cobra.Command {
-	var workspacePath string
-
+	environment := &environment{stdout: stdout, stderr: stderr}
 	root := &cobra.Command{
 		Use:           "kick-sim",
-		Short:         "Send locally signed Kick webhook events",
+		Short:         "Unofficial local simulator for Kick webhook integrations",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
 	root.SetOut(stdout)
 	root.SetErr(stderr)
-	root.PersistentFlags().StringVar(&workspacePath, "workspace", ".kick-sim", "workspace directory")
+	root.PersistentFlags().StringVar(&environment.workspaceFlag, "workspace", "", "workspace directory")
+	root.PersistentFlags().StringVarP(&environment.output, "output", "o", "human", "output format: human or json")
+	root.PersistentFlags().BoolVarP(&environment.verbose, "verbose", "v", false, "show resolved workspace details")
+	root.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
+		if environment.output != "human" && environment.output != "json" {
+			return usageError(fmt.Errorf("unsupported output format %q", environment.output))
+		}
+		return nil
+	}
+	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return usageError(err) })
 
-	root.AddCommand(newInitCommand(stdout, &workspacePath))
-	root.AddCommand(newEventCommand(stdout, &workspacePath))
-
+	root.AddCommand(newInitCommand(environment))
+	root.AddCommand(newWorkspaceCommand(environment))
+	root.AddCommand(newEventCommand(environment))
+	root.AddCommand(newScenarioCommand(environment))
+	root.AddCommand(newKeysCommand(environment))
+	root.AddCommand(newConfigCommand(environment))
+	root.AddCommand(newCompatibilityCommand(environment))
+	root.AddCommand(newVersionCommand(environment))
 	return root
 }
 
-func newInitCommand(stdout io.Writer, workspacePath *string) *cobra.Command {
-	return &cobra.Command{
-		Use:   "init",
-		Short: "Create a simulator workspace and RSA key pair",
-		Args:  cobra.NoArgs,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			paths, err := workspace.Init(*workspacePath)
-			if err != nil {
-				return err
-			}
-
-			_, err = fmt.Fprintf(stdout, "Workspace created: %s\nPublic key: %s\n", paths.Root, paths.PublicKey)
-			return err
-		},
+func (environment *environment) resolve(initialize bool) (string, error) {
+	root, err := workspace.Resolve(workspace.ResolveOptions{
+		Explicit:   environment.workspaceFlag,
+		Start:      environment.start,
+		Initialize: initialize,
+	})
+	if err != nil {
+		return "", workspaceError(err)
 	}
+	if environment.verbose && environment.output == "human" {
+		fmt.Fprintf(environment.stderr, "Workspace: %s\n", root)
+	}
+	return root, nil
 }
 
-func newEventCommand(stdout io.Writer, workspacePath *string) *cobra.Command {
-	event := &cobra.Command{
-		Use:   "event",
-		Short: "Generate and deliver webhook events",
+func (environment *environment) service() (*app.Service, error) {
+	root, err := environment.resolve(false)
+	if err != nil {
+		return nil, err
 	}
-	event.AddCommand(newTriggerCommand(stdout, workspacePath))
-	return event
+	service, err := app.Open(root)
+	if err != nil {
+		return nil, workspaceError(err)
+	}
+	return service, nil
 }
 
-func newTriggerCommand(stdout io.Writer, workspacePath *string) *cobra.Command {
-	var destinationURL string
-	var content string
-	var sender string
-	var senderID int64
-	var broadcaster string
-	var broadcasterID int64
+func (environment *environment) writeJSON(value any) error {
+	encoder := json.NewEncoder(environment.stdout)
+	encoder.SetEscapeHTML(false)
+	return encoder.Encode(value)
+}
 
-	command := &cobra.Command{
-		Use:   "trigger <event-type>",
-		Short: "Deliver a signed chat.message.sent webhook",
-		Args: func(_ *cobra.Command, args []string) error {
-			if len(args) != 1 || args[0] != simulator.ChatMessageSentType {
-				return fmt.Errorf("expected event type %q", simulator.ChatMessageSentType)
-			}
-			return nil
-		},
-		RunE: func(command *cobra.Command, _ []string) error {
-			privateKey, err := signing.ReadPrivateKey(workspace.PathsFor(*workspacePath).PrivateKey)
-			if err != nil {
-				return fmt.Errorf("load simulator private key: %w", err)
-			}
+func usageError(err error) error     { return &exitError{code: exitUsage, err: err} }
+func workspaceError(err error) error { return &exitError{code: exitWorkspace, err: err} }
+func scenarioError(err error) error  { return &exitError{code: exitScenario, err: err} }
+func deliveryError(err error) error  { return &exitError{code: exitDelivery, err: err} }
 
-			result, err := simulator.TriggerChatMessage(command.Context(), privateKey, simulator.ChatMessageOptions{
-				DestinationURL: destinationURL,
-				Content:        content,
-				Sender: simulator.UserInput{
-					UserID:   senderID,
-					Username: sender,
-				},
-				Broadcaster: simulator.UserInput{
-					UserID:     broadcasterID,
-					Username:   broadcaster,
-					IsVerified: true,
-				},
-				Timeout: 10 * time.Second,
-			})
-			if err != nil {
-				return err
-			}
-
-			_, err = fmt.Fprintf(stdout,
-				"Delivered %s@1\nStatus: %d\nDuration: %s\nMessage ID: %s\nSubscription ID: %s\n",
-				simulator.ChatMessageSentType,
-				result.StatusCode,
-				result.Duration.Round(time.Millisecond),
-				result.MessageID,
-				result.SubscriptionID,
-			)
-			return err
-		},
+func errorCode(err error) int {
+	var coded *exitError
+	if errors.As(err, &coded) {
+		return coded.code
 	}
-
-	command.Flags().StringVar(&destinationURL, "destination-url", "", "loopback webhook URL")
-	command.Flags().StringVar(&content, "content", "Hello from Kick Sim", "chat message content")
-	command.Flags().StringVar(&sender, "sender", "viewer_42", "sender username")
-	command.Flags().Int64Var(&senderID, "sender-id", 987654321, "sender user ID")
-	command.Flags().StringVar(&broadcaster, "broadcaster", "broadcaster", "broadcaster username")
-	command.Flags().Int64Var(&broadcasterID, "broadcaster-id", 123456789, "broadcaster user ID")
-	_ = command.MarkFlagRequired("destination-url")
-
-	return command
+	message := err.Error()
+	for _, marker := range []string{"unknown command", "accepts ", "requires at least", "requires at most"} {
+		if strings.Contains(message, marker) {
+			return exitUsage
+		}
+	}
+	return exitGeneral
 }
 
 func executeForTest(ctx context.Context, command *cobra.Command, args ...string) error {
