@@ -1,0 +1,19 @@
+{
+  "upstream": {
+    "repository": "KickEngineering/KickDevDocs",
+    "commit": "61d7e8336fe2bc4bbb7479fa56bf77d5ae4a2fe1",
+    "retrievedAt": "2026-08-24",
+    "documents": [
+      "events/webhook-security.md",
+      "events/event-types.md",
+      "events/subscribe-to-events.md",
+      "getting-started/generating-tokens-oauth2-flow.md"
+    ]
+  },
+  "supportedEvents": {
+    "chat.message.sent": [1]
+  },
+  "knownDifferences": [
+    "Signatures use the workspace simulator key rather than Kick's production private key."
+  ]
+}

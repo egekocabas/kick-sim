@@ -1,0 +1,19 @@
+version: 1
+name: Message with emotes
+description: A chat message containing emote positions.
+request:
+  event:
+    type: chat.message.sent
+    version: 1
+  payload:
+    content: "Hello [emote:37226:KEKW]"
+    emotes:
+      - emote_id: "37226"
+        positions:
+          - s: 6
+            e: 25
+  delivery:
+    mode: direct
+    destination: local
+    expect:
+      statuses: [200, 202, 204]
