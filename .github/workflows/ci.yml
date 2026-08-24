@@ -2,9 +2,41 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - ".editorconfig"
+      - ".gitattributes"
+      - ".github/CODEOWNERS"
+      - ".github/FUNDING.yml"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - ".github/PULL_REQUEST_TEMPLATE/**"
+      - ".github/dependabot.yml"
+      - ".github/workflows/**"
+      - ".gitignore"
+      - ".idea/**"
+      - ".vscode/**"
+      - "LICENSE*"
+      - "docs/**"
   push:
     branches:
       - main
+    paths-ignore:
+      - "**/*.md"
+      - ".editorconfig"
+      - ".gitattributes"
+      - ".github/CODEOWNERS"
+      - ".github/FUNDING.yml"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - ".github/PULL_REQUEST_TEMPLATE/**"
+      - ".github/dependabot.yml"
+      - ".github/workflows/**"
+      - ".gitignore"
+      - ".idea/**"
+      - ".vscode/**"
+      - "LICENSE*"
+      - "docs/**"
 
 permissions:
   contents: read
