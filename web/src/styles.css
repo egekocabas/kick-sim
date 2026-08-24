@@ -114,6 +114,13 @@ dd { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; tex
 .item-card p { min-height: 38px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .item-card code { color: #b7c7bd; font-size: 11px; }
 .badge { color: var(--green); border: 1px solid rgba(83,252,24,.25); border-radius: 999px; padding: 3px 7px; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+.badge.invalid { color: #ffad9c; border-color: rgba(255,92,61,.35); }
+.source-editor { min-height: 520px; margin-top: 16px; line-height: 1.6; tab-size: 2; }
+.source-actions { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.source-actions code { max-width: 45%; overflow-wrap: anywhere; color: var(--muted); font-size: 9px; text-align: right; }
+.source-conflict { margin-bottom: 16px; padding: 16px; border: 1px solid rgba(255,190,92,.35); border-radius: 10px; color: #ffe0a8; background: rgba(255,190,92,.06); }
+.source-conflict p { margin: 6px 0 0; color: #cbbd9e; font-size: 12px; }
+.source-conflict .button-row { margin-top: 12px; }
 .activity-layout { grid-template-columns: minmax(370px, .85fr) minmax(0, 1.15fr); align-items: start; }
 .activity-table { display: grid; gap: 5px; }
 .activity-row { width: 100%; display: grid; grid-template-columns: minmax(160px, 1fr) 135px 44px 70px; gap: 12px; align-items: center; padding: 11px; border: 1px solid transparent; border-radius: 8px; background: #0c110e; text-align: left; }
@@ -168,6 +175,8 @@ dd { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; tex
   .tab { white-space: nowrap; }
   .split-fields { grid-template-columns: 1fr; }
   .nested-fields, .detail-grid { grid-template-columns: 1fr; }
+  .source-actions { align-items: stretch; flex-direction: column; }
+  .source-actions code { max-width: none; text-align: left; }
   .activity-row { grid-template-columns: 1fr auto; }
   .activity-row code { display: none; }
 }
