@@ -1,10 +1,13 @@
 package events
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/egekocabas/kick-sim/internal/actors"
 	"github.com/egekocabas/kick-sim/internal/config"
 )
 
@@ -27,6 +30,66 @@ func TestDefaultPayloadResolvesAndValidates(t *testing.T) {
 	)
 	if err := registry.Validate(ChatMessageSentType, ChatMessageSentVersion, resolved); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestAllBundledEventDefaultsResolveAndValidate(t *testing.T) {
+	t.Parallel()
+	registry, err := NewRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(registry.List()); got != 4 {
+		t.Fatalf("event definitions = %d, want 4", got)
+	}
+	for _, listed := range registry.List() {
+		definition, err := registry.Get(listed.Type, listed.Version)
+		if err != nil {
+			t.Fatal(err)
+		}
+		payload := Compose(definition, config.Default().Defaults, nil)
+		resolved := ResolveDynamic(payload, func() string { return "01ARZ3NDEKTSV4RRFFQ69G5FAV" }, time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC))
+		if err := registry.Validate(listed.Type, listed.Version, resolved); err != nil {
+			t.Fatalf("validate %s@%d: %v", listed.Type, listed.Version, err)
+		}
+	}
+}
+
+func TestActorProjectionProtectsOwnedFieldsAndPreservesChatContext(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "users.yaml")
+	if err := os.WriteFile(path, []byte("version: 1\nusers:\n  moderator:\n    user_id: 300\n    username: test_mod\n    channel_slug: test-mod\n    is_verified: true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	actorRegistry, err := actors.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := NewRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := registry.Get(ChatMessageSentType, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := ComposeWithActors(definition, config.Default().Defaults, actorRegistry, map[string]string{"sender": "moderator"}, map[string]any{"sender": map[string]any{"identity": map[string]any{"username_color": "#53FC18", "badges": []any{}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sender := payload["sender"].(map[string]any)
+	if sender["user_id"] != int64(300) || sender["username"] != "test_mod" {
+		t.Fatalf("sender = %#v", sender)
+	}
+	if sender["identity"].(map[string]any)["username_color"] != "#53FC18" {
+		t.Fatalf("identity = %#v", sender["identity"])
+	}
+	if _, err := ComposeWithActors(definition, config.Default().Defaults, actorRegistry, map[string]string{"sender": "moderator"}, map[string]any{"sender": map[string]any{"username": "override"}}); err == nil {
+		t.Fatal("ComposeWithActors() accepted actor-owned payload data")
+	}
+	payload["sender"].(map[string]any)["username"] = "override"
+	if err := ValidateActorOwned(definition, actorRegistry, map[string]string{"sender": "moderator"}, payload); err == nil {
+		t.Fatal("ValidateActorOwned() accepted an override")
 	}
 }
 

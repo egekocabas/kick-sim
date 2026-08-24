@@ -7,15 +7,70 @@ import (
 	"sort"
 	"time"
 
+	"github.com/egekocabas/kick-sim/internal/actors"
 	"github.com/egekocabas/kick-sim/internal/config"
 )
 
 func Compose(definition Definition, workspaceDefaults config.Defaults, scenarioPayload map[string]any) map[string]any {
-	payload := DeepCopyMap(definition.Defaults)
-	mergeUser(payload, "broadcaster", workspaceDefaults.Broadcaster)
-	mergeUser(payload, "sender", workspaceDefaults.Sender)
-	DeepMerge(payload, scenarioPayload)
+	payload, _ := ComposeWithActors(definition, workspaceDefaults, nil, nil, scenarioPayload)
 	return payload
+}
+
+var actorOwnedFields = []string{"user_id", "username", "channel_slug", "is_verified", "profile_picture"}
+
+func ComposeWithActors(definition Definition, workspaceDefaults config.Defaults, registry *actors.Registry, bindings map[string]string, scenarioPayload map[string]any) (map[string]any, error) {
+	payload := DeepCopyMap(definition.Defaults)
+	for role, roleDefinition := range definition.ActorRoles {
+		user := workspaceDefaults.Sender
+		if roleDefinition.DefaultSource == "broadcaster" {
+			user = workspaceDefaults.Broadcaster
+		}
+		mergeUser(payload, role, user)
+	}
+	for role, actorID := range bindings {
+		if _, supported := definition.ActorRoles[role]; !supported {
+			return nil, fmt.Errorf("event %s@%d does not support actor role %q", definition.Type, definition.Version, role)
+		}
+		actor, err := registry.Get(actorID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve %s actor: %w", role, err)
+		}
+		if supplied, ok := toStringMap(scenarioPayload[role]); ok {
+			for _, field := range actorOwnedFields {
+				if _, exists := supplied[field]; exists {
+					return nil, fmt.Errorf("payload field %s.%s is actor-owned; change actor %q or its registry data", role, field, actorID)
+				}
+			}
+		}
+		mergeActor(payload, role, actor)
+	}
+	DeepMerge(payload, scenarioPayload)
+	return payload, nil
+}
+
+func ValidateActorOwned(definition Definition, registry *actors.Registry, bindings map[string]string, payload map[string]any) error {
+	for role, actorID := range bindings {
+		if _, supported := definition.ActorRoles[role]; !supported {
+			return fmt.Errorf("event %s@%d does not support actor role %q", definition.Type, definition.Version, role)
+		}
+		actor, err := registry.Get(actorID)
+		if err != nil {
+			return fmt.Errorf("resolve %s actor: %w", role, err)
+		}
+		expectedDocument := map[string]any{}
+		mergeActor(expectedDocument, role, actor)
+		expected, _ := toStringMap(expectedDocument[role])
+		actual, ok := toStringMap(payload[role])
+		if !ok {
+			return fmt.Errorf("payload role %s is actor-owned and must remain an object", role)
+		}
+		for _, field := range actorOwnedFields {
+			if !Equal(actual[field], expected[field]) {
+				return fmt.Errorf("payload field %s.%s is actor-owned; change actor %q or its registry data", role, field, actorID)
+			}
+		}
+	}
+	return nil
 }
 
 func ResolveDynamic(value any, newID func() string, now time.Time) any {
@@ -110,6 +165,17 @@ func mergeUser(payload map[string]any, role string, user config.User) {
 			"profile_picture": profilePicture,
 		},
 	})
+}
+
+func mergeActor(payload map[string]any, role string, user actors.User) {
+	profilePicture := user.ProfilePicture
+	if profilePicture == "" {
+		profilePicture = fmt.Sprintf("https://example.invalid/kick-sim/%s.png", user.Username)
+	}
+	DeepMerge(payload, map[string]any{role: map[string]any{
+		"user_id": user.UserID, "username": user.Username, "channel_slug": user.ChannelSlug,
+		"is_verified": user.IsVerified, "profile_picture": profilePicture,
+	}})
 }
 
 func deepCopy(value any) any {

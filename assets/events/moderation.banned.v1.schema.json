@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kick-sim.local/events/moderation.banned/1",
+  "title": "moderation.banned@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["broadcaster", "moderator", "banned_user", "metadata"],
+  "properties": {
+    "broadcaster": {"$ref": "#/$defs/user"},
+    "moderator": {"$ref": "#/$defs/user"},
+    "banned_user": {"$ref": "#/$defs/user"},
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "created_at", "expires_at"],
+      "properties": {
+        "reason": {"type": "string"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "expires_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    }
+  },
+  "$defs": {
+    "user": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["is_anonymous", "user_id", "username", "is_verified", "profile_picture", "channel_slug"],
+      "properties": {
+        "is_anonymous": {"type": "boolean"},
+        "user_id": {"type": ["integer", "null"]},
+        "username": {"type": ["string", "null"]},
+        "is_verified": {"type": ["boolean", "null"]},
+        "profile_picture": {"type": ["string", "null"]},
+        "channel_slug": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

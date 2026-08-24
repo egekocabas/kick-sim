@@ -13,10 +13,32 @@ import (
 
 const EnvironmentVariable = "KICK_SIM_WORKSPACE"
 
+const defaultActors = `version: 1
+users:
+  streamer:
+    user_id: 100
+    username: test_streamer
+    channel_slug: test-streamer
+    is_verified: false
+  viewer:
+    user_id: 200
+    username: test_viewer
+    channel_slug: test-viewer
+    is_verified: false
+  moderator:
+    user_id: 300
+    username: test_mod
+    channel_slug: test-mod
+    is_verified: false
+`
+
 type Paths struct {
 	Root       string
 	Config     string
 	Scenarios  string
+	Data       string
+	Users      string
+	Suites     string
 	Runtime    string
 	Database   string
 	PrivateKey string
@@ -32,10 +54,14 @@ type ResolveOptions struct {
 
 func PathsFor(root string) Paths {
 	keysDirectory := filepath.Join(root, "keys")
+	dataDirectory := filepath.Join(root, "data")
 	return Paths{
 		Root:       root,
 		Config:     filepath.Join(root, "config.yaml"),
 		Scenarios:  filepath.Join(root, "scenarios"),
+		Data:       dataDirectory,
+		Users:      filepath.Join(dataDirectory, "users.yaml"),
+		Suites:     filepath.Join(root, "suites"),
 		Runtime:    filepath.Join(root, ".runtime"),
 		Database:   filepath.Join(root, ".runtime", "kick-sim.db"),
 		PrivateKey: filepath.Join(keysDirectory, "private-key.pem"),
@@ -85,7 +111,7 @@ func Resolve(options ResolveOptions) (string, error) {
 
 func Init(root string) (Paths, error) {
 	paths := PathsFor(root)
-	for _, path := range []string{paths.Config, paths.PrivateKey, paths.PublicKey} {
+	for _, path := range []string{paths.Config, paths.Users, paths.PrivateKey, paths.PublicKey} {
 		if _, err := os.Lstat(path); err == nil {
 			return Paths{}, fmt.Errorf("refusing to overwrite existing workspace file %s", path)
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -94,6 +120,9 @@ func Init(root string) (Paths, error) {
 	}
 	if err := os.MkdirAll(paths.Scenarios, 0o755); err != nil {
 		return Paths{}, fmt.Errorf("create scenarios directory: %w", err)
+	}
+	if err := os.MkdirAll(paths.Data, 0o755); err != nil {
+		return Paths{}, fmt.Errorf("create actor data directory: %w", err)
 	}
 	if err := InitKeys(root); err != nil {
 		return Paths{}, err
@@ -107,8 +136,14 @@ func Init(root string) (Paths, error) {
 		cleanupKeys(paths)
 		return Paths{}, err
 	}
+	if err := writeExclusive(paths.Users, []byte(defaultActors), 0o644); err != nil {
+		_ = os.Remove(paths.Config)
+		cleanupKeys(paths)
+		return Paths{}, err
+	}
 	if err := ensureGitIgnore(paths.GitIgnore); err != nil {
 		_ = os.Remove(paths.Config)
+		_ = os.Remove(paths.Users)
 		cleanupKeys(paths)
 		return Paths{}, err
 	}

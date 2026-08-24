@@ -5,7 +5,10 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/egekocabas/kick-sim/internal/actors"
 	"github.com/egekocabas/kick-sim/internal/history"
+	"github.com/egekocabas/kick-sim/internal/suite"
+	"github.com/egekocabas/kick-sim/internal/workflow"
 )
 
 func Register(api huma.API, backend Backend) {
@@ -57,6 +60,23 @@ func Register(api huma.API, backend Backend) {
 	registerBody[ScenarioRunRequest, DeliveryResult](api, http.MethodPost, "/api/scenario-runs", "runScenario", "Run a scenario working copy", func(ctx context.Context, body ScenarioRunRequest) (DeliveryResult, error) {
 		return backend.RunScenario(ctx, body)
 	})
+	register[struct{}, ActorsResponse](api, http.MethodGet, "/api/actors", "listActors", "List reusable workspace actors", func(ctx context.Context, _ *struct{}) (ActorsResponse, error) {
+		items, err := backend.ListActors(ctx)
+		return ActorsResponse{Items: items}, err
+	})
+	registerBody[ScenarioRunRequest, workflow.WorkflowResult](api, http.MethodPost, "/api/workflow-runs", "runWorkflow", "Run a single-event or timeline scenario", func(ctx context.Context, body ScenarioRunRequest) (workflow.WorkflowResult, error) {
+		return backend.RunWorkflow(ctx, body)
+	})
+	register[struct{}, SuitesResponse](api, http.MethodGet, "/api/suites", "listSuites", "List built-in and custom suites", func(ctx context.Context, _ *struct{}) (SuitesResponse, error) {
+		items, err := backend.ListSuites(ctx)
+		return SuitesResponse{Items: items}, err
+	})
+	register[SuiteInput, SuiteDetail](api, http.MethodGet, "/api/suite", "getSuite", "Get a suite", func(ctx context.Context, input *SuiteInput) (SuiteDetail, error) {
+		return backend.GetSuite(ctx, input.ID)
+	})
+	registerBody[SuiteRunRequest, suite.SuiteResult](api, http.MethodPost, "/api/suite-runs", "runSuite", "Run a suite and enforce its thresholds", func(ctx context.Context, body SuiteRunRequest) (suite.SuiteResult, error) {
+		return backend.RunSuite(ctx, body)
+	})
 	register[ActivityInput, ActivityResponse](api, http.MethodGet, "/api/runs", "listRuns", "List chronological delivery activity", func(ctx context.Context, input *ActivityInput) (ActivityResponse, error) {
 		items, err := backend.ListActivity(ctx, input.Limit, input.Offset)
 		return ActivityResponse{Items: items}, err
@@ -94,6 +114,12 @@ type EventsResponse struct {
 type ScenariosResponse struct {
 	Items []ScenarioSummary `json:"items"`
 }
+type ActorsResponse struct {
+	Items map[string]actors.User `json:"items"`
+}
+type SuitesResponse struct {
+	Items []SuiteSummary `json:"items"`
+}
 type ActivityResponse struct {
 	Items []history.Activity `json:"items"`
 }
@@ -104,6 +130,9 @@ type EventInput struct {
 	Version int    `path:"version" minimum:"1"`
 }
 type ScenarioInput struct {
+	ID string `query:"id" minLength:"1"`
+}
+type SuiteInput struct {
 	ID string `query:"id" minLength:"1"`
 }
 type AttemptInput struct {

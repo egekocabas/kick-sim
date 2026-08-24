@@ -73,6 +73,7 @@ func NewRootCommand(stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newWorkspaceCommand(environment))
 	root.AddCommand(newEventCommand(environment))
 	root.AddCommand(newScenarioCommand(environment))
+	root.AddCommand(newSuiteCommand(environment))
 	root.AddCommand(newKeysCommand(environment))
 	root.AddCommand(newConfigCommand(environment))
 	root.AddCommand(newCompatibilityCommand(environment))

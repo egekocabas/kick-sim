@@ -74,6 +74,30 @@
         ],
         "type": "object"
       },
+      "ActorsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/ActorsResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/User"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "Attempt": {
         "additionalProperties": false,
         "properties": {
@@ -243,6 +267,60 @@
         "required": [
           "apiVersion",
           "capabilities"
+        ],
+        "type": "object"
+      },
+      "CaseResult": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "index": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "scenarioId": {
+            "type": "string"
+          },
+          "workflow": {
+            "$ref": "#/components/schemas/WorkflowResult"
+          }
+        },
+        "required": [
+          "index",
+          "name",
+          "scenarioId",
+          "passed",
+          "workflow"
+        ],
+        "type": "object"
+      },
+      "Delivery": {
+        "additionalProperties": false,
+        "properties": {
+          "iteration": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "result": {
+            "$ref": "#/components/schemas/RunResult"
+          },
+          "step": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step",
+          "iteration",
+          "result"
         ],
         "type": "object"
       },
@@ -902,6 +980,143 @@
         ],
         "type": "object"
       },
+      "RunResult": {
+        "additionalProperties": false,
+        "properties": {
+          "attemptId": {
+            "type": "string"
+          },
+          "broadcasterUserId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "durationMs": {
+            "format": "double",
+            "type": "number"
+          },
+          "error": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "eventVersion": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "generatedEventId": {
+            "type": "string"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "logicalSubscription": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "messageTimestamp": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "rawBody": {
+            "type": "string"
+          },
+          "replayMode": {
+            "type": "string"
+          },
+          "replayOfId": {
+            "type": "string"
+          },
+          "responseBody": {
+            "type": "string"
+          },
+          "responseHeaders": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "type": "object"
+          },
+          "responseTruncated": {
+            "type": "boolean"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "scenarioDefinitionId": {
+            "type": "string"
+          },
+          "scenarioSourceVersion": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "subscriptionId": {
+            "type": "string"
+          },
+          "transportStartedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "attemptId",
+          "destination",
+          "url",
+          "method",
+          "status",
+          "durationMs",
+          "transportStartedAt",
+          "outcome",
+          "responseTruncated",
+          "runId",
+          "generatedEventId",
+          "eventType",
+          "eventVersion",
+          "broadcasterUserId",
+          "logicalSubscription",
+          "messageId",
+          "subscriptionId",
+          "messageTimestamp",
+          "headers",
+          "payload",
+          "rawBody",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "ScenarioCopyRequest": {
         "additionalProperties": false,
         "properties": {
@@ -979,6 +1194,13 @@
           "id": {
             "type": "string"
           },
+          "kind": {
+            "enum": [
+              "single",
+              "timeline"
+            ],
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -1021,6 +1243,7 @@
           "id",
           "name",
           "builtIn",
+          "kind",
           "eventType",
           "eventVersion",
           "revision",
@@ -1148,6 +1371,13 @@
           "id": {
             "type": "string"
           },
+          "kind": {
+            "enum": [
+              "single",
+              "timeline"
+            ],
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -1182,6 +1412,7 @@
           "id",
           "name",
           "builtIn",
+          "kind",
           "eventType",
           "eventVersion",
           "revision",
@@ -1218,6 +1449,257 @@
         ],
         "type": "object"
       },
+      "SuiteDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/SuiteDetail.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "builtIn": {
+            "type": "boolean"
+          },
+          "cases": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "id",
+          "name",
+          "builtIn",
+          "cases",
+          "valid"
+        ],
+        "type": "object"
+      },
+      "SuiteResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/SuiteResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/CaseResult"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "endedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "failedCases": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "passedCases": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "passedPercent": {
+            "format": "double",
+            "type": "number"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "suiteId": {
+            "type": "string"
+          },
+          "thresholds": {
+            "$ref": "#/components/schemas/Thresholds"
+          }
+        },
+        "required": [
+          "suiteId",
+          "name",
+          "passed",
+          "passedCases",
+          "failedCases",
+          "passedPercent",
+          "startedAt",
+          "endedAt",
+          "cases",
+          "thresholds"
+        ],
+        "type": "object"
+      },
+      "SuiteRunRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/SuiteRunRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "destinationUrl": {
+            "type": "string"
+          },
+          "suiteId": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "suiteId"
+        ],
+        "type": "object"
+      },
+      "SuiteSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "builtIn": {
+            "type": "boolean"
+          },
+          "cases": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "builtIn",
+          "cases",
+          "valid"
+        ],
+        "type": "object"
+      },
+      "SuitesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/SuitesResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SuiteSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "Thresholds": {
+        "additionalProperties": false,
+        "properties": {
+          "maxFailures": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "minPassedPercent": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "maxFailures"
+        ],
+        "type": "object"
+      },
+      "User": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_slug": {
+            "type": "string"
+          },
+          "is_verified": {
+            "type": "boolean"
+          },
+          "profile_picture": {
+            "type": "string"
+          },
+          "user_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "username",
+          "channel_slug",
+          "is_verified"
+        ],
+        "type": "object"
+      },
       "ValidResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1236,6 +1718,62 @@
         },
         "required": [
           "valid"
+        ],
+        "type": "object"
+      },
+      "WorkflowResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/WorkflowResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "deliveries": {
+            "items": {
+              "$ref": "#/components/schemas/Delivery"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "endedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "scenarioId": {
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenarioId",
+          "name",
+          "kind",
+          "passed",
+          "startedAt",
+          "endedAt",
+          "deliveries"
         ],
         "type": "object"
       },
@@ -1284,6 +1822,34 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/actors": {
+      "get": {
+        "operationId": "listActors",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActorsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List reusable workspace actors"
+      }
+    },
     "/api/bootstrap": {
       "get": {
         "operationId": "getBootstrap",
@@ -2010,6 +2576,149 @@
           }
         },
         "summary": "List built-in and custom scenarios"
+      }
+    },
+    "/api/suite": {
+      "get": {
+        "operationId": "getSuite",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "id",
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuiteDetail"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get a suite"
+      }
+    },
+    "/api/suite-runs": {
+      "post": {
+        "operationId": "runSuite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuiteRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuiteResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Run a suite and enforce its thresholds"
+      }
+    },
+    "/api/suites": {
+      "get": {
+        "operationId": "listSuites",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuitesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List built-in and custom suites"
+      }
+    },
+    "/api/workflow-runs": {
+      "post": {
+        "operationId": "runWorkflow",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Run a single-event or timeline scenario"
       }
     },
     "/api/workspace": {

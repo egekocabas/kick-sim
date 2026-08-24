@@ -1,0 +1,14 @@
+version: 1
+name: stale-timestamp
+description: Deliver a correctly signed event with a timestamp 24 hours in the past.
+request:
+  event:
+    type: chat.message.sent
+    version: 1
+  payload: {}
+  delivery:
+    mode: direct
+    destination: local
+    failure: stale-timestamp
+    expect:
+      statuses: [400, 401, 403]
