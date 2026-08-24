@@ -6,21 +6,27 @@
  */
 import type { ScenarioDetailDraftPayload } from './scenarioDetailDraftPayload';
 import type { ScenarioDetailPayload } from './scenarioDetailPayload';
+import type { ScenarioDetailSourceFormat } from './scenarioDetailSourceFormat';
 
 export interface ScenarioDetail {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
   builtIn: boolean;
   description?: string;
-  destination: string;
-  draftPayload: ScenarioDetailDraftPayload;
+  destination?: string;
+  draftPayload?: ScenarioDetailDraftPayload;
   eventType: string;
   eventVersion: number;
   /** @nullable */
-  expectedStatuses: number[] | null;
+  expectedStatuses?: number[] | null;
   id: string;
   name: string;
-  payload: ScenarioDetailPayload;
+  payload?: ScenarioDetailPayload;
   revision: string;
+  source: string;
+  sourceFormat: ScenarioDetailSourceFormat;
   sourceVersion: number;
+  valid: boolean;
+  /** @nullable */
+  validationErrors?: string[] | null;
 }

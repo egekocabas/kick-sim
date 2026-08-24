@@ -41,7 +41,11 @@ func newScenarioListCommand(environment *environment) *cobra.Command {
 				if entry.BuiltIn {
 					kind = "built-in"
 				}
-				fmt.Fprintf(environment.stdout, "%s\t%s\t%s\n", entry.ID, kind, entry.Scenario.Name)
+				name := entry.Scenario.Name
+				if len(entry.ValidationErrors) > 0 {
+					name = "invalid: " + entry.ValidationErrors[0]
+				}
+				fmt.Fprintf(environment.stdout, "%s\t%s\t%s\n", entry.ID, kind, name)
 			}
 			return nil
 		},

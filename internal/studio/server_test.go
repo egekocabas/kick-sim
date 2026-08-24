@@ -1,13 +1,17 @@
 package studio
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/egekocabas/kick-sim/internal/app"
+	kickopenapi "github.com/egekocabas/kick-sim/internal/openapi"
+	"github.com/egekocabas/kick-sim/internal/scenario"
 	"github.com/egekocabas/kick-sim/internal/workspace"
 )
 
@@ -50,9 +54,57 @@ func TestStudioSecurityBoundary(t *testing.T) {
 	}
 }
 
+func TestScenarioSourceSaveReturnsConflictWithoutOverwriting(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	if _, err := workspace.Init(root); err != nil {
+		t.Fatal(err)
+	}
+	service, err := app.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := scenario.NewStore(root, service.Events, service.Config)
+	entry, err := store.Copy("builtin:chat/basic-message", "editing/conflict", "kick-sim@test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	running, err := New(service, "127.0.0.1:4321")
+	if err != nil {
+		t.Fatal(err)
+	}
+	home := request(t, running.Handler, http.MethodGet, "/", "127.0.0.1:4321", nil, "", "")
+	cookie := home.Result().Cookies()[0]
+	external := strings.Replace(string(entry.Source), "Hello from Kick Sim", "External edit", 1)
+	if err := os.WriteFile(entry.Path, []byte(external), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(kickopenapi.ScenarioSourceSaveRequest{ID: entry.ID, Revision: entry.Revision, Source: string(entry.Source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := requestBody(t, running.Handler, http.MethodPut, "/api/scenario", "127.0.0.1:4321", cookie, running.URL, "application/json", string(body))
+	if response.Code != http.StatusConflict {
+		t.Fatalf("save status = %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), entry.Revision) || !strings.Contains(response.Body.String(), "sha256:") {
+		t.Fatalf("conflict response does not include revisions: %s", response.Body.String())
+	}
+	onDisk, err := os.ReadFile(entry.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(onDisk) != external {
+		t.Fatal("conflicting API save overwrote the external file")
+	}
+}
+
 func request(t *testing.T, handler http.Handler, method, path, host string, cookie *http.Cookie, origin, contentType string) *httptest.ResponseRecorder {
+	return requestBody(t, handler, method, path, host, cookie, origin, contentType, "{}")
+}
+
+func requestBody(t *testing.T, handler http.Handler, method, path, host string, cookie *http.Cookie, origin, contentType, body string) *httptest.ResponseRecorder {
 	t.Helper()
-	request := httptest.NewRequest(method, path, strings.NewReader("{}"))
+	request := httptest.NewRequest(method, path, strings.NewReader(body))
 	request.Host = host
 	if cookie != nil {
 		request.AddCookie(cookie)

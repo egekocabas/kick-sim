@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   duplicateScenario, generateEvent, getBootstrap, getDeliveryAttempt, getScenario,
   getSimulatorKeyInfo, getSimulatorPublicKey, listRuns, listScenarios,
-  replayDeliveryAttempt, rotateSimulatorKey, triggerEvent, validateEvent,
+  replayDeliveryAttempt, rotateSimulatorKey, saveScenarioSourceCopy, triggerEvent,
+  updateScenarioSource, validateEvent,
 } from "./api/generated/client";
 import type {
   Activity, Bootstrap, DeliveryAttemptDetail, DeliveryResult, KeyInfo,
@@ -22,6 +23,11 @@ function successful<T>(response: { status: number; data: T | unknown }): T {
     throw new Error(detail.detail ?? detail.title ?? `Request failed with HTTP ${response.status}`);
   }
   return response.data as T;
+}
+
+function failureMessage(data: unknown, fallback: string) {
+  const detail = data as { detail?: string; errors?: Array<{ message?: string }> };
+  return detail.errors?.map((item) => item.message).filter(Boolean).join("; ") || detail.detail || fallback;
 }
 
 export function App() {
@@ -70,7 +76,7 @@ function EventBuilder({ initialScenarioID }: { initialScenarioID?: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const validation = useRef(0);
-  const scenariosQuery = useQuery({ queryKey: ["scenarios"], queryFn: async () => successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items ?? [] });
+  const scenariosQuery = useQuery({ queryKey: ["scenarios", "valid"], queryFn: async () => successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items?.filter((item) => item.valid !== false) ?? [] });
   useEffect(() => { if (!selectedID && scenariosQuery.data?.[0]) setSelectedID(scenariosQuery.data[0].id); }, [selectedID, scenariosQuery.data]);
   const scenarioQuery = useQuery({ queryKey: ["scenario", selectedID], enabled: Boolean(selectedID), queryFn: async () => successful<ScenarioDetail>(await getScenario({ id: selectedID })) });
   useEffect(() => { if (scenarioQuery.data) { const value = scenarioQuery.data.draftPayload as JSONObject; setDraft(value); setRaw(JSON.stringify(value, null, 2)); setRawError(""); setPreview(""); setResult(undefined); } }, [scenarioQuery.data]);
@@ -132,9 +138,92 @@ function ValueEditor({ label, value, onChange }: { label: string; value: unknown
 
 function Scenarios({ onOpen }: { onOpen: (id: string) => void }) {
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["scenarios"], queryFn: async () => successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items ?? [] });
+  const [editingID, setEditingID] = useState("");
+  const query = useQuery({ queryKey: ["scenarios"], queryFn: async () => successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items ?? [], refetchInterval: 1500 });
   const duplicate = async (item: ScenarioSummary) => { const id = window.prompt("New scenario ID", `${item.id}-copy`); if (!id) return; const detail = successful<ScenarioDetail>(await getScenario({ id: item.id })); successful(await duplicateScenario({ sourceId: item.id, targetId: id, payload: detail.draftPayload as JSONObject })); await queryClient.invalidateQueries({ queryKey: ["scenarios"] }); };
-  return <div className="page-content"><Section title="Scenario library" hint="Built-ins remain immutable; copies are yours to edit"><div className="card-grid">{query.data?.map((item) => <article className="item-card" key={item.id}><span className="badge">{item.builtIn ? "Built-in" : "Custom"}</span><h3>{item.name}</h3><p>{item.description}</p><code>{item.eventType}@{item.eventVersion}</code><div className="button-row"><button className="primary" onClick={() => onOpen(item.id)}>Open</button><button onClick={() => void duplicate(item)}>Duplicate</button></div></article>)}</div></Section></div>;
+  return <div className="page-content">
+    <Section title="Scenario library" hint="Built-ins remain immutable; custom source files stay authoritative">
+      <div className="card-grid">{query.data?.map((item) => <article className="item-card" key={item.id}>
+        <span className={`badge ${item.valid === false ? "invalid" : ""}`}>{item.valid === false ? "Invalid source" : item.builtIn ? "Built-in" : "Custom"}</span>
+        <h3>{item.name || item.id}</h3><p>{item.description || item.validationErrors?.join("; ")}</p>
+        <code>{item.eventType ? `${item.eventType}@${item.eventVersion}` : item.sourceFormat}</code>
+        <div className="button-row"><button className="primary" disabled={item.valid === false} onClick={() => onOpen(item.id)}>Open</button><button disabled={item.valid === false} onClick={() => void duplicate(item)}>Duplicate</button>{!item.builtIn && <button onClick={() => setEditingID(item.id)}>Edit source</button>}</div>
+      </article>)}</div>
+    </Section>
+    {editingID && <ScenarioSourceEditor id={editingID} onClose={() => setEditingID("")} onSelect={setEditingID} />}
+  </div>;
+}
+
+function ScenarioSourceEditor({ id, onClose, onSelect }: { id: string; onClose: () => void; onSelect: (id: string) => void }) {
+  const queryClient = useQueryClient();
+  const query = useQuery({ queryKey: ["scenario-source", id], queryFn: async () => successful<ScenarioDetail>(await getScenario({ id })), refetchInterval: 1500 });
+  const loadedID = useRef("");
+  const [draftSource, setDraftSource] = useState("");
+  const [baselineRevision, setBaselineRevision] = useState("");
+  const [ignoredRevision, setIgnoredRevision] = useState("");
+  const [diskChange, setDiskChange] = useState<ScenarioDetail>();
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const current = query.data;
+    if (!current) return;
+    if (loadedID.current !== id) {
+      loadedID.current = id;
+      setDraftSource(current.source);
+      setBaselineRevision(current.revision);
+      setIgnoredRevision("");
+      setDiskChange(undefined);
+      setMessage("");
+      return;
+    }
+    if (baselineRevision && current.revision !== baselineRevision && current.revision !== ignoredRevision) setDiskChange(current);
+  }, [id, query.data, baselineRevision, ignoredRevision]);
+
+  const accept = (saved: ScenarioDetail) => {
+    loadedID.current = saved.id;
+    setDraftSource(saved.source);
+    setBaselineRevision(saved.revision);
+    setIgnoredRevision("");
+    setDiskChange(undefined);
+    queryClient.setQueryData(["scenario-source", saved.id], saved);
+  };
+  const save = async () => {
+    setBusy(true); setMessage("");
+    try {
+      const response = await updateScenarioSource({ id, revision: baselineRevision, source: draftSource });
+      if (response.status !== 200) {
+        if (response.status === 409) await query.refetch();
+        throw new Error(failureMessage(response.data, `Save failed with HTTP ${response.status}`));
+      }
+      const saved = response.data as ScenarioDetail; accept(saved); setMessage("Source saved"); await queryClient.invalidateQueries({ queryKey: ["scenarios"] });
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(false); }
+  };
+  const saveCopy = async () => {
+    const targetID = window.prompt("New scenario ID", `${id}-copy`); if (!targetID) return;
+    setBusy(true); setMessage("");
+    try {
+      const response = await saveScenarioSourceCopy({ sourceId: id, targetId: targetID, source: draftSource });
+      const saved = successful<ScenarioDetail>(response); await queryClient.invalidateQueries({ queryKey: ["scenarios"] }); onSelect(saved.id); setMessage(`Saved ${saved.id}`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(false); }
+  };
+  const reload = () => {
+    if (!diskChange) return;
+    accept(diskChange); setMessage(diskChange.valid ? "Reloaded file from disk" : "Reloaded invalid file for repair");
+  };
+  const keepDraft = () => { if (diskChange) setIgnoredRevision(diskChange.revision); setDiskChange(undefined); setMessage("Kept your draft; saving to the original file will still require its prior revision"); };
+  const detail = query.data;
+  const ready = loadedID.current === id && Boolean(baselineRevision);
+  return <Section title={`Edit source · ${id}`} hint={`${detail?.sourceFormat?.toUpperCase() ?? "Source"} · exact file text`}>
+    {query.isError && <Notice tone="error">Source file is no longer available at this scenario ID. Your draft is still open and can be saved as a copy.</Notice>}
+    {diskChange && <div className="source-conflict" role="alert"><strong>File changed on disk</strong><p>Your open draft was not replaced.</p><div className="button-row"><button className="primary" onClick={reload}>Reload file</button><button onClick={keepDraft}>Keep draft</button></div></div>}
+    {detail?.valid === false && detail.validationErrors?.map((problem) => <Notice tone="error" key={problem}>{problem}</Notice>)}
+    {ready ? <><textarea className="source-editor" aria-label="Scenario source" value={draftSource} onChange={(event) => { setDraftSource(event.target.value); setMessage(""); }} spellCheck={false} />
+      <div className="source-actions"><div className="button-row"><button className="primary" disabled={busy || draftSource === detail?.source} onClick={() => void save()}>Save source</button><button disabled={busy || !draftSource} onClick={() => void saveCopy()}>Save as copy</button><button onClick={onClose}>Close</button></div><code>{baselineRevision}</code></div></> : <p className="empty">Loading source…</p>}
+    {message && <Notice tone={message.includes("saved") || message.includes("Reloaded") ? "success" : "error"}>{message}</Notice>}
+  </Section>;
 }
 
 function ActivityPage() { const [selected, setSelected] = useState<string>(); const query = useQuery({ queryKey: ["activity"], queryFn: async () => successful<{ items: Activity[] | null }>(await listRuns({ limit: 100, offset: 0 })).items ?? [] }); return <div className="page-content activity-layout"><Section title="Delivery activity" hint="Newest attempts first"><ActivityTable items={query.data ?? []} onSelect={setSelected} selected={selected} /></Section>{selected && <AttemptInspector id={selected} />}</div>; }

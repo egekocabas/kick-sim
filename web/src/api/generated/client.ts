@@ -44,6 +44,8 @@ import type {
   ScenarioCopyRequest,
   ScenarioDetail,
   ScenarioRunRequest,
+  ScenarioSourceCopyRequest,
+  ScenarioSourceSaveRequest,
   ScenariosResponse,
   ValidResponse,
   Workspace
@@ -1880,6 +1882,110 @@ export function useGetScenario<TData = Awaited<ReturnType<typeof getScenario>>, 
 
 
 
+export type updateScenarioSourceResponse200 = {
+  data: ScenarioDetail
+  status: 200
+}
+
+export type updateScenarioSourceResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type updateScenarioSourceResponseSuccess = (updateScenarioSourceResponse200) & {
+  headers: Headers;
+};
+export type updateScenarioSourceResponseError = (updateScenarioSourceResponseDefault) & {
+  headers: Headers;
+};
+
+export type updateScenarioSourceResponse = (updateScenarioSourceResponseSuccess | updateScenarioSourceResponseError)
+
+export const getUpdateScenarioSourceUrl = () => {
+
+
+
+
+  return `/api/scenario`
+}
+
+/**
+ * @summary Validate and save scenario source
+ */
+export const updateScenarioSource = async (scenarioSourceSaveRequest: NonReadonly<ScenarioSourceSaveRequest>, options?: RequestInit): Promise<updateScenarioSourceResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+const res = await fetch(getUpdateScenarioSourceUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(scenarioSourceSaveRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: updateScenarioSourceResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as updateScenarioSourceResponse
+}
+
+
+
+
+
+export const getUpdateScenarioSourceMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateScenarioSource>>, TError,UpdateScenarioSourceMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof updateScenarioSource>>, TError,UpdateScenarioSourceMutationVariables, TContext> => {
+
+const mutationKey = ['updateScenarioSource'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateScenarioSource>>, UpdateScenarioSourceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateScenarioSource(data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateScenarioSourceMutationResult = NonNullable<Awaited<ReturnType<typeof updateScenarioSource>>>
+    export type UpdateScenarioSourceMutationBody = NonReadonly<ScenarioSourceSaveRequest>
+    export type UpdateScenarioSourceMutationError = ErrorModel
+    export type UpdateScenarioSourceMutationVariables = {data: NonReadonly<ScenarioSourceSaveRequest>}
+
+    /**
+ * @summary Validate and save scenario source
+ */
+export const useUpdateScenarioSource = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateScenarioSource>>, TError,UpdateScenarioSourceMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateScenarioSource>>,
+        TError,
+        UpdateScenarioSourceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateScenarioSourceMutationOptions(options), queryClient);
+    }
+
 export type duplicateScenarioResponse200 = {
   data: ScenarioDetail
   status: 200
@@ -2086,6 +2192,110 @@ export const useRunScenario = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getRunScenarioMutationOptions(options), queryClient);
+    }
+
+export type saveScenarioSourceCopyResponse200 = {
+  data: ScenarioDetail
+  status: 200
+}
+
+export type saveScenarioSourceCopyResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type saveScenarioSourceCopyResponseSuccess = (saveScenarioSourceCopyResponse200) & {
+  headers: Headers;
+};
+export type saveScenarioSourceCopyResponseError = (saveScenarioSourceCopyResponseDefault) & {
+  headers: Headers;
+};
+
+export type saveScenarioSourceCopyResponse = (saveScenarioSourceCopyResponseSuccess | saveScenarioSourceCopyResponseError)
+
+export const getSaveScenarioSourceCopyUrl = () => {
+
+
+
+
+  return `/api/scenario-source-copies`
+}
+
+/**
+ * @summary Validate and save scenario source as a canonical copy
+ */
+export const saveScenarioSourceCopy = async (scenarioSourceCopyRequest: NonReadonly<ScenarioSourceCopyRequest>, options?: RequestInit): Promise<saveScenarioSourceCopyResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+const res = await fetch(getSaveScenarioSourceCopyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(scenarioSourceCopyRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: saveScenarioSourceCopyResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as saveScenarioSourceCopyResponse
+}
+
+
+
+
+
+export const getSaveScenarioSourceCopyMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveScenarioSourceCopy>>, TError,SaveScenarioSourceCopyMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof saveScenarioSourceCopy>>, TError,SaveScenarioSourceCopyMutationVariables, TContext> => {
+
+const mutationKey = ['saveScenarioSourceCopy'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveScenarioSourceCopy>>, SaveScenarioSourceCopyMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveScenarioSourceCopy(data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveScenarioSourceCopyMutationResult = NonNullable<Awaited<ReturnType<typeof saveScenarioSourceCopy>>>
+    export type SaveScenarioSourceCopyMutationBody = NonReadonly<ScenarioSourceCopyRequest>
+    export type SaveScenarioSourceCopyMutationError = ErrorModel
+    export type SaveScenarioSourceCopyMutationVariables = {data: NonReadonly<ScenarioSourceCopyRequest>}
+
+    /**
+ * @summary Validate and save scenario source as a canonical copy
+ */
+export const useSaveScenarioSourceCopy = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveScenarioSourceCopy>>, TError,SaveScenarioSourceCopyMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveScenarioSourceCopy>>,
+        TError,
+        SaveScenarioSourceCopyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveScenarioSourceCopyMutationOptions(options), queryClient);
     }
 
 export type listScenariosResponse200 = {

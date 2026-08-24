@@ -48,6 +48,12 @@ func Register(api huma.API, backend Backend) {
 	registerBody[ScenarioCopyRequest, ScenarioDetail](api, http.MethodPost, "/api/scenario-duplicates", "duplicateScenario", "Save a scenario working copy", func(ctx context.Context, body ScenarioCopyRequest) (ScenarioDetail, error) {
 		return backend.SaveScenarioCopy(ctx, body)
 	})
+	registerBody[ScenarioSourceSaveRequest, ScenarioDetail](api, http.MethodPut, "/api/scenario", "updateScenarioSource", "Validate and save scenario source", func(ctx context.Context, body ScenarioSourceSaveRequest) (ScenarioDetail, error) {
+		return backend.SaveScenarioSource(ctx, body)
+	})
+	registerBody[ScenarioSourceCopyRequest, ScenarioDetail](api, http.MethodPost, "/api/scenario-source-copies", "saveScenarioSourceCopy", "Validate and save scenario source as a canonical copy", func(ctx context.Context, body ScenarioSourceCopyRequest) (ScenarioDetail, error) {
+		return backend.SaveScenarioSourceCopy(ctx, body)
+	})
 	registerBody[ScenarioRunRequest, DeliveryResult](api, http.MethodPost, "/api/scenario-runs", "runScenario", "Run a scenario working copy", func(ctx context.Context, body ScenarioRunRequest) (DeliveryResult, error) {
 		return backend.RunScenario(ctx, body)
 	})
@@ -115,6 +121,10 @@ func register[I any, O any](api huma.API, method, path, operationID, summary str
 	huma.Register(api, huma.Operation{OperationID: operationID, Method: method, Path: path, Summary: summary}, func(ctx context.Context, input *I) (*struct{ Body O }, error) {
 		body, err := handler(ctx, input)
 		if err != nil {
+			type statusCoder interface{ HTTPStatus() int }
+			if problem, ok := err.(statusCoder); ok {
+				return nil, huma.NewError(problem.HTTPStatus(), err.Error(), err)
+			}
 			return nil, huma.Error400BadRequest(err.Error())
 		}
 		return &struct{ Body O }{Body: body}, nil
