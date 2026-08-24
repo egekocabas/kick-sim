@@ -1,8 +1,11 @@
 package compatibility
 
 import (
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/egekocabas/kick-sim/internal/events"
 )
 
 func TestMetadataPinsFullUpstreamRevisionAndBundleDigest(t *testing.T) {
@@ -18,7 +21,40 @@ func TestMetadataPinsFullUpstreamRevisionAndBundleDigest(t *testing.T) {
 	if !strings.HasPrefix(metadata.BundleDigest, "sha256:") || len(metadata.BundleDigest) != len("sha256:")+64 {
 		t.Fatalf("bundle digest = %q", metadata.BundleDigest)
 	}
-	if versions := metadata.SupportedEvents["chat.message.sent"]; len(versions) != 1 || versions[0] != 1 {
-		t.Fatalf("supported events = %#v", metadata.SupportedEvents)
+	const expectedDigest = "sha256:c7956d5d43812ce7557902419718f4013781c0b6071e0eae1913abda3a3230bf"
+	if metadata.BundleDigest != expectedDigest {
+		t.Fatalf("bundle digest = %q, want %q", metadata.BundleDigest, expectedDigest)
+	}
+
+	registry, err := events.NewRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	registered := make(map[string][]int)
+	for _, definition := range registry.List() {
+		registered[definition.Type] = append(registered[definition.Type], definition.Version)
+	}
+	if !reflect.DeepEqual(metadata.SupportedEvents, registered) {
+		t.Fatalf("compatibility metadata = %#v, registry = %#v", metadata.SupportedEvents, registered)
+	}
+}
+
+func TestBundlePathsAreDeterministicAndComplete(t *testing.T) {
+	t.Parallel()
+
+	got := bundlePaths(map[string][]int{
+		"z.event": {2, 1},
+		"a.event": {1},
+	})
+	want := []string{
+		"events/a.event.v1.schema.json",
+		"events/a.event.v1.defaults.json",
+		"events/z.event.v1.schema.json",
+		"events/z.event.v1.defaults.json",
+		"events/z.event.v2.schema.json",
+		"events/z.event.v2.defaults.json",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("bundle paths = %#v, want %#v", got, want)
 	}
 }

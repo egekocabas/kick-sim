@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
 	"strings"
@@ -24,6 +25,7 @@ import (
 const (
 	DefaultAddress = "127.0.0.1:4321"
 	controlCookie  = "kick_sim_control"
+	maxRequestBody = 2 << 20
 )
 
 type Options struct {
@@ -127,7 +129,7 @@ func New(service *app.Service, address string) (RunningServer, error) {
 		}
 		staticHandler.ServeHTTP(writer, request)
 	})
-	handler := securityMiddleware(origin, net.JoinHostPort(host, port), token, router)
+	handler := securityMiddleware(origin, net.JoinHostPort(host, port), token, http.MaxBytesHandler(router, maxRequestBody))
 	return RunningServer{URL: origin, Embedded: embedded, Token: token, Handler: handler}, nil
 }
 
@@ -160,8 +162,16 @@ func securityMiddleware(origin, allowedHost, token string, next http.Handler) ht
 		writer.Header().Set("Referrer-Policy", "no-referrer")
 		writer.Header().Set("X-Content-Type-Options", "nosniff")
 		writer.Header().Set("X-Frame-Options", "DENY")
+		writer.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
+		if strings.HasPrefix(request.URL.Path, "/api/") {
+			writer.Header().Set("Cache-Control", "no-store")
+		}
 		if request.Host != allowedHost {
 			http.Error(writer, "invalid Studio host", http.StatusForbidden)
+			return
+		}
+		if request.ContentLength > maxRequestBody {
+			http.Error(writer, "Studio request body is too large", http.StatusRequestEntityTooLarge)
 			return
 		}
 		if request.Method == http.MethodGet && !strings.HasPrefix(request.URL.Path, "/api/") {
@@ -171,7 +181,8 @@ func securityMiddleware(origin, allowedHost, token string, next http.Handler) ht
 			})
 		}
 		if isMutating(request.Method) {
-			if !strings.HasPrefix(strings.ToLower(request.Header.Get("Content-Type")), "application/json") {
+			mediaType, _, mediaTypeErr := mime.ParseMediaType(request.Header.Get("Content-Type"))
+			if mediaTypeErr != nil || !strings.EqualFold(mediaType, "application/json") {
 				http.Error(writer, "mutating Studio requests require application/json", http.StatusUnsupportedMediaType)
 				return
 			}

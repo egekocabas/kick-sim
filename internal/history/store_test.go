@@ -2,13 +2,103 @@ package history
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/egekocabas/kick-sim/internal/config"
 )
+
+func TestNewerDatabaseIsRejectedWithoutMigration(t *testing.T) {
+	t.Parallel()
+
+	directory := t.TempDir()
+	path := filepath.Join(directory, "kick-sim.db")
+	settings := config.Default().History
+	store, err := Open(path, settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.Exec(`UPDATE schema_migrations SET version = ?`, schemaVersion+1); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Open(path, settings); err == nil || !strings.Contains(err.Error(), "newer than supported") {
+		t.Fatalf("Open() error = %v", err)
+	}
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var version int
+	if err := db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if version != schemaVersion+1 {
+		t.Fatalf("schema version = %d, want %d", version, schemaVersion+1)
+	}
+	backups, err := filepath.Glob(path + ".backup-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 0 {
+		t.Fatalf("newer database created migration backup: %#v", backups)
+	}
+}
+
+func TestExistingDatabaseIsBackedUpBeforeMigration(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "kick-sim.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+		CREATE TABLE legacy_marker (value TEXT NOT NULL);
+		INSERT INTO legacy_marker (value) VALUES ('preserve-me');
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := Open(path, config.Default().History)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	backups, err := filepath.Glob(path + ".backup-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 1 {
+		t.Fatalf("migration backups = %#v", backups)
+	}
+	backup, err := sql.Open("sqlite", backups[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer backup.Close()
+	var marker string
+	if err := backup.QueryRow(`SELECT value FROM legacy_marker`).Scan(&marker); err != nil {
+		t.Fatal(err)
+	}
+	if marker != "preserve-me" {
+		t.Fatalf("backup marker = %q", marker)
+	}
+}
 
 func TestReadDoesNotCreateDatabase(t *testing.T) {
 	t.Parallel()
