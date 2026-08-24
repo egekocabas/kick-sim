@@ -151,6 +151,8 @@ func newScenarioRunCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return usageError(err)
 			}
+			options.ScenarioDefinitionID = entry.ID
+			options.ScenarioSourceVersion = entry.SourceVersion
 			subscriptionID := deliveryOptions.subscriptionID
 			if subscriptionID == "" {
 				subscriptionID = entry.Scenario.Request.Delivery.SubscriptionID

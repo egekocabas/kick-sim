@@ -35,9 +35,12 @@ type Metadata struct {
 }
 
 type Result struct {
-	StatusCode   int
-	Duration     time.Duration
-	ResponseBody []byte
+	StatusCode    int
+	Headers       http.Header
+	Duration      time.Duration
+	StartedAt     time.Time
+	ResponseBody  []byte
+	BodyTruncated bool
 }
 
 func Send(ctx context.Context, client *http.Client, destination string, metadata Metadata, body []byte) (Result, error) {
@@ -64,16 +67,21 @@ func Send(ctx context.Context, client *http.Client, destination string, metadata
 
 	startedAt := time.Now()
 	response, err := client.Do(request)
-	result := Result{Duration: time.Since(startedAt)}
+	result := Result{Duration: time.Since(startedAt), StartedAt: startedAt.UTC()}
 	if err != nil {
 		return result, fmt.Errorf("deliver webhook: %w", err)
 	}
 	defer response.Body.Close()
 
 	result.StatusCode = response.StatusCode
-	result.ResponseBody, err = io.ReadAll(io.LimitReader(response.Body, maxResponseBody))
+	result.Headers = response.Header.Clone()
+	result.ResponseBody, err = io.ReadAll(io.LimitReader(response.Body, maxResponseBody+1))
 	if err != nil {
 		return result, fmt.Errorf("read webhook response: %w", err)
+	}
+	if len(result.ResponseBody) > maxResponseBody {
+		result.ResponseBody = result.ResponseBody[:maxResponseBody]
+		result.BodyTruncated = true
 	}
 	return result, nil
 }

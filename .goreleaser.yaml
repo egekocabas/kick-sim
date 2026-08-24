@@ -20,6 +20,8 @@ builds:
         goarch: arm64
     flags:
       - -trimpath
+    tags:
+      - studio_embed
     ldflags:
       - >-
         -s -w

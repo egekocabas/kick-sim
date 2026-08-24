@@ -53,6 +53,29 @@ func TestBuiltInsValidateAndCopyToCustomScenario(t *testing.T) {
 	if _, err := store.Copy("builtin:chat/basic-message", "regressions/moderator", "kick-sim@test"); err == nil {
 		t.Fatal("Copy() overwrote an existing scenario")
 	}
+	source, err := store.Get("builtin:chat/basic-message")
+	if err != nil {
+		t.Fatal(err)
+	}
+	modified := map[string]any{}
+	for key, value := range source.Scenario.Request.Payload {
+		modified[key] = value
+	}
+	modified["content"] = "saved working copy"
+	saved, err := store.SaveAsCopy(source.ID, "working/basic", modified, "kick-sim@test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Scenario.Request.Payload["content"] != "saved working copy" {
+		t.Fatalf("saved payload = %#v", saved.Scenario.Request.Payload)
+	}
+	reloadedSource, err := store.Get(source.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloadedSource.Revision != source.Revision {
+		t.Fatal("SaveAsCopy() rewrote the source scenario")
+	}
 }
 
 func TestValidateIDRejectsTraversalAndPlatformSpecificPaths(t *testing.T) {

@@ -77,6 +77,9 @@ func NewRootCommand(stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newConfigCommand(environment))
 	root.AddCommand(newCompatibilityCommand(environment))
 	root.AddCommand(newVersionCommand(environment))
+	root.AddCommand(newStudioCommand(environment))
+	root.AddCommand(newOpenAPICommand(environment))
+	root.AddCommand(newHistoryCommand(environment))
 	return root
 }
 

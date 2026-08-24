@@ -18,6 +18,7 @@ type Paths struct {
 	Config     string
 	Scenarios  string
 	Runtime    string
+	Database   string
 	PrivateKey string
 	PublicKey  string
 	GitIgnore  string
@@ -36,6 +37,7 @@ func PathsFor(root string) Paths {
 		Config:     filepath.Join(root, "config.yaml"),
 		Scenarios:  filepath.Join(root, "scenarios"),
 		Runtime:    filepath.Join(root, ".runtime"),
+		Database:   filepath.Join(root, ".runtime", "kick-sim.db"),
 		PrivateKey: filepath.Join(keysDirectory, "private-key.pem"),
 		PublicKey:  filepath.Join(keysDirectory, "public-key.pem"),
 		GitIgnore:  filepath.Join(root, ".gitignore"),

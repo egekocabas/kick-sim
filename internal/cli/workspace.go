@@ -34,7 +34,7 @@ func newInitCommand(environment *environment) *cobra.Command {
 				fmt.Fprintf(environment.stderr, "Warning: %s\n", warning)
 			}
 			_, err = fmt.Fprintf(environment.stdout,
-				"Kick Sim workspace created:\n  %s\n\nSimulator public key:\n  %s\n",
+				"Kick Sim workspace created:\n  %s\n\nSimulator public key:\n  %s\n\nStart the local Studio:\n  kick-sim studio\n",
 				paths.Root,
 				paths.PublicKey,
 			)
