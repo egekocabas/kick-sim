@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/egekocabas/kick-sim/assets"
+	"github.com/egekocabas/kick-sim/internal/actors"
 	"github.com/egekocabas/kick-sim/internal/config"
 	"github.com/egekocabas/kick-sim/internal/events"
 	"github.com/goccy/go-yaml"
@@ -57,10 +58,15 @@ type Store struct {
 	workspaceRoot string
 	registry      *events.Registry
 	configuration config.Config
+	actors        *actors.Registry
 }
 
-func NewStore(workspaceRoot string, registry *events.Registry, configuration config.Config) *Store {
-	return &Store{workspaceRoot: workspaceRoot, registry: registry, configuration: configuration}
+func NewStore(workspaceRoot string, registry *events.Registry, configuration config.Config, actorRegistries ...*actors.Registry) *Store {
+	actorRegistry := actors.Empty()
+	if len(actorRegistries) > 0 && actorRegistries[0] != nil {
+		actorRegistry = actorRegistries[0]
+	}
+	return &Store{workspaceRoot: workspaceRoot, registry: registry, configuration: configuration, actors: actorRegistry}
 }
 
 func (store *Store) List() ([]Entry, error) {
@@ -115,12 +121,15 @@ func (store *Store) SaveAsCopy(sourceID, targetID string, payload map[string]any
 
 	value := source.Scenario
 	if payload != nil {
+		if value.Kind() != "single" {
+			return Entry{}, errors.New("timeline scenarios must be copied from their complete source")
+		}
 		value.Request.Payload = events.DeepCopyMap(payload)
 		value.Request.Payload["message_id"] = "{{ ulid() }}"
 		value.Request.Payload["created_at"] = "{{ now() }}"
 	}
 	value.Metadata = Metadata{Source: sourceID, SourceVersion: source.SourceVersion, CreatedWith: createdWith}
-	if err := value.Validate(store.registry, store.configuration); err != nil {
+	if err := value.Validate(store.registry, store.configuration, store.actors); err != nil {
 		return Entry{}, err
 	}
 	data, err := yaml.Marshal(value)
@@ -197,7 +206,7 @@ func (store *Store) Validate(entry Entry) error {
 	if entry.validationError != nil {
 		return entry.validationError
 	}
-	return entry.Scenario.Validate(store.registry, store.configuration)
+	return entry.Scenario.Validate(store.registry, store.configuration, store.actors)
 }
 
 func ValidateID(id string) error {
@@ -310,7 +319,7 @@ func (store *Store) parseAndValidate(data []byte) (Scenario, error) {
 	if err != nil {
 		return Scenario{}, &SourceValidationError{Problems: []string{err.Error()}}
 	}
-	if err := value.Validate(store.registry, store.configuration); err != nil {
+	if err := value.Validate(store.registry, store.configuration, store.actors); err != nil {
 		return value, &SourceValidationError{Problems: errorMessages(err)}
 	}
 	return value, nil
@@ -343,6 +352,11 @@ func parse(data []byte) (Scenario, error) {
 	}
 	if value.Request.Payload == nil {
 		value.Request.Payload = map[string]any{}
+	}
+	for index := range value.Steps {
+		if value.Steps[index].Payload == nil {
+			value.Steps[index].Payload = map[string]any{}
+		}
 	}
 	return value, nil
 }

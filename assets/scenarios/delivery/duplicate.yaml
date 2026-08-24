@@ -1,0 +1,15 @@
+version: 1
+name: duplicate-delivery
+description: Deliver the same signed event twice to inspect duplicate-response behavior.
+request:
+  event:
+    type: chat.message.sent
+    version: 1
+  payload: {}
+  delivery:
+    mode: direct
+    destination: local
+    attempts: 2
+    sameMessageId: true
+    expect:
+      statuses: [200, 202, 204]

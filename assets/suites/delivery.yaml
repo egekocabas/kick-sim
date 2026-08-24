@@ -1,0 +1,14 @@
+version: 1
+name: delivery
+description: Exercise accepted and duplicate delivery responses.
+thresholds:
+  maxFailures: 0
+cases:
+  - scenario: builtin:chat/basic-message
+    expect:
+      statuses: [200, 202, 204]
+  - scenario: builtin:delivery/duplicate
+    expect:
+      deliveries: 2
+      sameMessageId: true
+      statuses: [200, 202, 204]

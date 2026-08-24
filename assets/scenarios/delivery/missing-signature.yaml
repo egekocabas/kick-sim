@@ -1,0 +1,14 @@
+version: 1
+name: missing-signature
+description: Deliver a valid payload without a signature header.
+request:
+  event:
+    type: chat.message.sent
+    version: 1
+  payload: {}
+  delivery:
+    mode: direct
+    destination: local
+    failure: missing-signature
+    expect:
+      statuses: [400, 401, 403]

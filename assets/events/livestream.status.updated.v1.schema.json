@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kick-sim.local/events/livestream.status.updated/1",
+  "title": "livestream.status.updated@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["broadcaster", "is_live", "title", "started_at", "ended_at"],
+  "properties": {
+    "broadcaster": {"$ref": "#/$defs/user"},
+    "is_live": {"type": "boolean"},
+    "title": {"type": "string"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "$defs": {
+    "user": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["is_anonymous", "user_id", "username", "is_verified", "profile_picture", "channel_slug"],
+      "properties": {
+        "is_anonymous": {"type": "boolean"},
+        "user_id": {"type": ["integer", "null"]},
+        "username": {"type": ["string", "null"]},
+        "is_verified": {"type": ["boolean", "null"]},
+        "profile_picture": {"type": ["string", "null"]},
+        "channel_slug": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

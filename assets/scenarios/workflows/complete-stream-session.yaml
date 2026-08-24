@@ -1,0 +1,22 @@
+version: 1
+name: complete-stream-session
+description: Start a stream, receive chat and follow activity, moderate a viewer, and stop.
+defaults:
+  destination: local
+  expect:
+    statuses: [200, 202, 204]
+steps:
+  - event: livestream.status.updated
+    payload:
+      is_live: true
+      ended_at: null
+  - event: chat.message.sent
+    repeat: 3
+    interval: 100ms
+  - event: channel.followed
+  - wait: 250ms
+  - event: moderation.banned
+  - event: livestream.status.updated
+    payload:
+      is_live: false
+      ended_at: "{{ now() }}"

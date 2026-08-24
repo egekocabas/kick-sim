@@ -1,0 +1,21 @@
+version: 1
+name: security
+description: Exercise common webhook signature rejection behavior.
+thresholds:
+  maxFailures: 0
+cases:
+  - scenario: builtin:chat/basic-message
+    expect:
+      statuses: [200, 202, 204]
+  - scenario: builtin:delivery/invalid-signature
+    expect:
+      statuses: [400, 401, 403]
+  - scenario: builtin:delivery/missing-signature
+    expect:
+      statuses: [400, 401, 403]
+  - scenario: builtin:delivery/stale-timestamp
+    expect:
+      statuses: [400, 401, 403]
+  - scenario: builtin:delivery/modified-body
+    expect:
+      statuses: [400, 401, 403]

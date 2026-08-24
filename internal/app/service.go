@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/egekocabas/kick-sim/internal/actors"
 	"github.com/egekocabas/kick-sim/internal/config"
 	"github.com/egekocabas/kick-sim/internal/delivery"
 	"github.com/egekocabas/kick-sim/internal/events"
@@ -25,6 +26,7 @@ type Service struct {
 	Workspace string
 	Config    config.Config
 	Events    *events.Registry
+	Actors    *actors.Registry
 	Now       func() time.Time
 	NewID     func() string
 }
@@ -33,6 +35,7 @@ type PayloadOptions struct {
 	EventType             string
 	EventVersion          int
 	Scenario              map[string]any
+	Actors                map[string]string
 	Omit                  []string
 	StringValues          map[string]string
 	JSONValues            map[string]any
@@ -89,10 +92,15 @@ func Open(workspaceRoot string) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
+	actorRegistry, err := actors.Load(workspace.PathsFor(workspaceRoot).Users)
+	if err != nil {
+		return nil, err
+	}
 	return &Service{
 		Workspace: workspaceRoot,
 		Config:    configuration,
 		Events:    registry,
+		Actors:    actorRegistry,
 		Now:       time.Now,
 		NewID:     func() string { return ulid.Make().String() },
 	}, nil
@@ -107,7 +115,10 @@ func (service *Service) generatePayloadAt(options PayloadOptions, now time.Time)
 	if err != nil {
 		return nil, err
 	}
-	payload := events.Compose(definition, service.Config.Defaults, options.Scenario)
+	payload, err := events.ComposeWithActors(definition, service.Config.Defaults, service.Actors, options.Actors, options.Scenario)
+	if err != nil {
+		return nil, err
+	}
 	document := map[string]any{"payload": payload}
 
 	seen := map[string]struct{}{}
@@ -152,6 +163,9 @@ func (service *Service) generatePayloadAt(options PayloadOptions, now time.Time)
 			return nil, err
 		}
 	}
+	if err := events.ValidateActorOwned(definition, service.Actors, options.Actors, payload); err != nil {
+		return nil, err
+	}
 
 	resolved, ok := events.ResolveDynamic(payload, service.NewID, now).(map[string]any)
 	if !ok {
@@ -164,7 +178,11 @@ func (service *Service) generatePayloadAt(options PayloadOptions, now time.Time)
 }
 
 func (service *Service) Generate(options PayloadOptions, subscriptionOverride string) (Generated, error) {
-	now := service.Now().UTC()
+	return service.GenerateAt(options, subscriptionOverride, service.Now().UTC())
+}
+
+func (service *Service) GenerateAt(options PayloadOptions, subscriptionOverride string, logicalTime time.Time) (Generated, error) {
+	now := logicalTime.UTC()
 	payload, err := service.generatePayloadAt(options, now)
 	if err != nil {
 		return Generated{}, err
@@ -236,6 +254,35 @@ func (service *Service) Deliver(ctx context.Context, generated Generated, destin
 	return service.deliver(ctx, generated, destinationName, temporaryURL, expectedStatuses, "", "")
 }
 
+func (service *Service) ApplyDeliveryFailure(generated Generated, failure string) (Generated, error) {
+	switch failure {
+	case "":
+		return generated, nil
+	case "invalid-signature":
+		generated.Headers[delivery.HeaderSignature] = "invalid"
+	case "missing-signature":
+		delete(generated.Headers, delivery.HeaderSignature)
+	case "modified-body":
+		generated.RawBody += " "
+		generated.body = []byte(generated.RawBody)
+	case "malformed-json":
+		generated.RawBody = "{"
+		generated.body = []byte(generated.RawBody)
+		privateKey, err := service.privateKey()
+		if err != nil {
+			return Generated{}, err
+		}
+		signature, err := signing.Sign(privateKey, generated.MessageID, generated.MessageTimestamp, generated.body)
+		if err != nil {
+			return Generated{}, err
+		}
+		generated.Headers[delivery.HeaderSignature] = signature
+	default:
+		return Generated{}, fmt.Errorf("unsupported delivery failure %q", failure)
+	}
+	return generated, nil
+}
+
 func (service *Service) deliver(ctx context.Context, generated Generated, destinationName, temporaryURL string, expectedStatuses []int, replayOfID, replayMode string) (RunResult, error) {
 	configuredName := destinationName
 	if temporaryURL != "" && (configuredName == "" || configuredName == "temporary") {
@@ -264,6 +311,7 @@ func (service *Service) deliver(ctx context.Context, generated Generated, destin
 		Timestamp:      generated.MessageTimestamp,
 		EventType:      generated.EventType,
 		EventVersion:   fmt.Sprint(generated.EventVersion),
+		OmitSignature:  !hasHeader(generated.Headers, delivery.HeaderSignature),
 	}, generated.body)
 	run := RunResult{
 		Generated:          generated,
@@ -343,8 +391,12 @@ func (service *Service) Replay(ctx context.Context, attemptID, mode string) (Run
 		return service.deliver(ctx, generated, detail.Attempt.Destination, detail.Attempt.URL, nil, attemptID, mode)
 	case "regenerated":
 		payload := events.DeepCopyMap(detail.Event.Payload)
-		payload["message_id"] = "{{ ulid() }}"
-		payload["created_at"] = "{{ now() }}"
+		if _, exists := payload["message_id"]; exists {
+			payload["message_id"] = "{{ ulid() }}"
+		}
+		if _, exists := payload["created_at"]; exists {
+			payload["created_at"] = "{{ now() }}"
+		}
 		generated, err := service.Generate(PayloadOptions{
 			EventType:             detail.Event.EventType,
 			EventVersion:          detail.Event.EventVersion,
@@ -484,4 +536,9 @@ func containsStatus(statuses []int, actual int) bool {
 		}
 	}
 	return false
+}
+
+func hasHeader(headers map[string]string, name string) bool {
+	_, exists := headers[name]
+	return exists
 }

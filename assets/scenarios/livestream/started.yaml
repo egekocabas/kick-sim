@@ -1,0 +1,15 @@
+version: 1
+name: livestream-started
+description: The broadcaster starts a livestream.
+request:
+  event:
+    type: livestream.status.updated
+    version: 1
+  payload:
+    is_live: true
+    ended_at: null
+  delivery:
+    mode: direct
+    destination: local
+    expect:
+      statuses: [200, 202, 204]

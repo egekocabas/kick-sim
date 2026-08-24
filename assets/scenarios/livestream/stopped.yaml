@@ -1,0 +1,15 @@
+version: 1
+name: livestream-stopped
+description: The broadcaster ends a livestream.
+request:
+  event:
+    type: livestream.status.updated
+    version: 1
+  payload:
+    is_live: false
+    ended_at: "{{ now() }}"
+  delivery:
+    mode: direct
+    destination: local
+    expect:
+      statuses: [200, 202, 204]

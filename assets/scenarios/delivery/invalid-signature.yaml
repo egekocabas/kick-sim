@@ -1,0 +1,14 @@
+version: 1
+name: invalid-signature
+description: Deliver a valid payload with an invalid signature.
+request:
+  event:
+    type: chat.message.sent
+    version: 1
+  payload: {}
+  delivery:
+    mode: direct
+    destination: local
+    failure: invalid-signature
+    expect:
+      statuses: [400, 401, 403]

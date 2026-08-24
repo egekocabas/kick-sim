@@ -32,6 +32,7 @@ type Metadata struct {
 	Timestamp      string
 	EventType      string
 	EventVersion   string
+	OmitSignature  bool
 }
 
 type Result struct {
@@ -55,7 +56,9 @@ func Send(ctx context.Context, client *http.Client, destination string, metadata
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set(HeaderMessageID, metadata.MessageID)
 	request.Header.Set(HeaderSubscriptionID, metadata.SubscriptionID)
-	request.Header.Set(HeaderSignature, metadata.Signature)
+	if !metadata.OmitSignature {
+		request.Header.Set(HeaderSignature, metadata.Signature)
+	}
 	request.Header.Set(HeaderTimestamp, metadata.Timestamp)
 	request.Header.Set(HeaderEventType, metadata.EventType)
 	request.Header.Set(HeaderEventVersion, metadata.EventVersion)

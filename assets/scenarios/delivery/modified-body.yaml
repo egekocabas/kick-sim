@@ -1,0 +1,14 @@
+version: 1
+name: modified-body
+description: Modify the serialized body after it has been signed.
+request:
+  event:
+    type: chat.message.sent
+    version: 1
+  payload: {}
+  delivery:
+    mode: direct
+    destination: local
+    failure: modified-body
+    expect:
+      statuses: [400, 401, 403]

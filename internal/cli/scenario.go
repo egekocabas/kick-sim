@@ -5,6 +5,7 @@ import (
 
 	"github.com/egekocabas/kick-sim/internal/scenario"
 	"github.com/egekocabas/kick-sim/internal/version"
+	"github.com/egekocabas/kick-sim/internal/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,7 @@ func newScenarioListCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			store := scenario.NewStore(service.Workspace, service.Events, service.Config)
+			store := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors)
 			entries, err := store.List()
 			if err != nil {
 				return scenarioError(err)
@@ -62,7 +63,7 @@ func newScenarioShowCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			entry, err := scenario.NewStore(service.Workspace, service.Events, service.Config).Get(args[0])
+			entry, err := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors).Get(args[0])
 			if err != nil {
 				return scenarioError(err)
 			}
@@ -85,7 +86,7 @@ func newScenarioCopyCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			entry, err := scenario.NewStore(service.Workspace, service.Events, service.Config).Copy(args[0], args[1], "kick-sim@"+version.Version)
+			entry, err := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors).Copy(args[0], args[1], "kick-sim@"+version.Version)
 			if err != nil {
 				return scenarioError(err)
 			}
@@ -108,7 +109,7 @@ func newScenarioValidateCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			store := scenario.NewStore(service.Workspace, service.Events, service.Config)
+			store := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors)
 			entry, err := store.Get(args[0])
 			if err != nil {
 				return scenarioError(err)
@@ -137,13 +138,40 @@ func newScenarioRunCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			store := scenario.NewStore(service.Workspace, service.Events, service.Config)
+			store := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors)
 			entry, err := store.Get(args[0])
 			if err != nil {
 				return scenarioError(err)
 			}
 			if err := store.Validate(entry); err != nil {
 				return scenarioError(err)
+			}
+			if entry.Scenario.Kind() == "timeline" || entry.Scenario.Request.Delivery.Attempts > 1 {
+				if entry.Scenario.Kind() == "timeline" {
+					for _, name := range []string{"content", "sender", "sender-id", "broadcaster", "broadcaster-id", "set", "set-json", "unset"} {
+						if command.Flags().Changed(name) {
+							return usageError(fmt.Errorf("payload flag --%s is not supported for timeline scenarios; edit the timeline step payload", name))
+						}
+					}
+				}
+				report, runErr := workflow.Run(command.Context(), service, entry, workflow.Options{
+					Destination: deliveryOptions.destination, DestinationURL: deliveryOptions.destinationURL,
+					SubscriptionID: deliveryOptions.subscriptionID,
+				})
+				if environment.output == "json" {
+					if err := environment.writeJSON(report); err != nil {
+						return err
+					}
+				} else {
+					for _, delivery := range report.Deliveries {
+						fmt.Fprintf(environment.stdout, "step %d.%d\t%s@%d\tHTTP %d\t%s\n", delivery.Step, delivery.Iteration, delivery.Result.EventType, delivery.Result.EventVersion, delivery.Result.Status, delivery.Result.Outcome)
+					}
+					fmt.Fprintf(environment.stdout, "Workflow %s: %d deliveries\n", entry.ID, len(report.Deliveries))
+				}
+				if runErr != nil {
+					return deliveryError(runErr)
+				}
+				return nil
 			}
 			options, err := payload.options(
 				command,
@@ -157,6 +185,7 @@ func newScenarioRunCommand(environment *environment) *cobra.Command {
 			}
 			options.ScenarioDefinitionID = entry.ID
 			options.ScenarioSourceVersion = entry.SourceVersion
+			options.Actors = entry.Scenario.Actors
 			subscriptionID := deliveryOptions.subscriptionID
 			if subscriptionID == "" {
 				subscriptionID = entry.Scenario.Request.Delivery.SubscriptionID

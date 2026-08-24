@@ -1,0 +1,13 @@
+version: 1
+name: new-follower
+description: A viewer follows the broadcaster.
+request:
+  event:
+    type: channel.followed
+    version: 1
+  payload: {}
+  delivery:
+    mode: direct
+    destination: local
+    expect:
+      statuses: [200, 202, 204]

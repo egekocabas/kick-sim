@@ -11,7 +11,10 @@
     ]
   },
   "supportedEvents": {
-    "chat.message.sent": [1]
+    "chat.message.sent": [1],
+    "channel.followed": [1],
+    "livestream.status.updated": [1],
+    "moderation.banned": [1]
   },
   "knownDifferences": [
     "Signatures use the workspace simulator key rather than Kick's production private key."

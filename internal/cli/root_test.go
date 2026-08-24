@@ -34,6 +34,7 @@ func TestRequiredCommandSurface(t *testing.T) {
 		"workspace path", "workspace validate", "workspace info",
 		"event list", "event show", "event generate", "event trigger", "event validate",
 		"scenario list", "scenario show", "scenario copy", "scenario validate", "scenario run",
+		"suite list", "suite show", "suite validate", "suite run",
 		"keys init", "keys public", "keys info", "keys rotate",
 		"config show", "config validate",
 		"compatibility", "version",
@@ -45,7 +46,7 @@ func TestRequiredCommandSurface(t *testing.T) {
 			t.Errorf("command %q not found: %v", path, err)
 		}
 	}
-	for _, unavailable := range []string{"suite", "load", "platform"} {
+	for _, unavailable := range []string{"load", "platform"} {
 		if found, _, err := command.Find([]string{unavailable}); err == nil && found.Name() == unavailable {
 			t.Errorf("unavailable command %q is visible", unavailable)
 		}
@@ -76,6 +77,12 @@ func TestScenarioAndEventCommandsUseMachineReadableOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, _, err := runCommand("--workspace", workspacePath, "scenario", "validate", "regressions/basic"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := runCommand("--workspace", workspacePath, "scenario", "validate", "builtin:workflows/complete-stream-session"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := runCommand("--workspace", workspacePath, "suite", "validate", "builtin:security"); err != nil {
 		t.Fatal(err)
 	}
 
