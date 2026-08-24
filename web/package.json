@@ -13,7 +13,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "api:generate": "orval --config ./orval.config.ts"
+    "api:generate": "orval --config ./orval.config.ts && node ./scripts/normalize-generated.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "5.102.2",
