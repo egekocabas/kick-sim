@@ -1,15 +1,58 @@
 package events
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/egekocabas/kick-sim/internal/actors"
 	"github.com/egekocabas/kick-sim/internal/config"
 )
+
+func TestBundledPayloadSerializationContract(t *testing.T) {
+	t.Parallel()
+
+	registry, err := NewRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"channel.followed@1":          "e643ac916c9bf1a06dd76ba40057e93082f38c77be8fe5dbc3b7892c22f37d6c",
+		"chat.message.sent@1":         "cb2478b52ada21a176fef94abf71c9839c3a0cda4881d8ff2d303e35dadeddc6",
+		"livestream.status.updated@1": "52bb73407786c6925ddf4a890a1904452da895f124e899f46b6d1d8743f31ed0",
+		"moderation.banned@1":         "e36cd7dbc294694752baa9f35731a14d49e205c57d2034f61563cd22111e6158",
+	}
+	for _, listed := range registry.List() {
+		definition, err := registry.Get(listed.Type, listed.Version)
+		if err != nil {
+			t.Fatal(err)
+		}
+		payload := Compose(definition, config.Default().Defaults, nil)
+		resolved := ResolveDynamic(payload, func() string { return "01ARZ3NDEKTSV4RRFFQ69G5FAV" }, time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)).(map[string]any)
+		first, err := Marshal(resolved, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		second, err := Marshal(resolved, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(first, second) {
+			t.Fatalf("%s@%d serialization is not deterministic", listed.Type, listed.Version)
+		}
+		digest := sha256.Sum256(first)
+		got := hex.EncodeToString(digest[:])
+		key := listed.Type + "@" + strconv.Itoa(listed.Version)
+		if got != want[key] {
+			t.Errorf("%s serialization digest = %q, want %q", key, got, want[key])
+		}
+	}
+}
 
 func TestDefaultPayloadResolvesAndValidates(t *testing.T) {
 	t.Parallel()

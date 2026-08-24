@@ -9,8 +9,10 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+const Version = "1.0.0"
+
 func New(router chi.Router, backend Backend) huma.API {
-	configuration := huma.DefaultConfig("Kick Sim Studio API", "0.2.0")
+	configuration := huma.DefaultConfig("Kick Sim Studio API", Version)
 	configuration.DocsPath = ""
 	configuration.SchemasPath = ""
 	configuration.OpenAPIPath = "/api/openapi"
