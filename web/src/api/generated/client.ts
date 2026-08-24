@@ -25,6 +25,7 @@ import type {
 
 import type {
   ActivityResponse,
+  ActorsResponse,
   Bootstrap,
   CapabilitiesResponse,
   DeliveryAttemptDetail,
@@ -37,6 +38,7 @@ import type {
   EventsResponse,
   GeneratedEvent,
   GetScenarioParams,
+  GetSuiteParams,
   KeyInfo,
   ListRunsParams,
   PublicKey,
@@ -47,7 +49,12 @@ import type {
   ScenarioSourceCopyRequest,
   ScenarioSourceSaveRequest,
   ScenariosResponse,
+  SuiteDetail,
+  SuiteResult,
+  SuiteRunRequest,
+  SuitesResponse,
   ValidResponse,
+  WorkflowResult,
   Workspace
 } from './models';
 
@@ -103,6 +110,133 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export type listActorsResponse200 = {
+  data: ActorsResponse
+  status: 200
+}
+
+export type listActorsResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listActorsResponseSuccess = (listActorsResponse200) & {
+  headers: Headers;
+};
+export type listActorsResponseError = (listActorsResponseDefault) & {
+  headers: Headers;
+};
+
+export type listActorsResponse = (listActorsResponseSuccess | listActorsResponseError)
+
+export const getListActorsUrl = () => {
+
+
+
+
+  return `/api/actors`
+}
+
+/**
+ * @summary List reusable workspace actors
+ */
+export const listActors = async ( options?: RequestInit): Promise<listActorsResponse> => {
+
+  const res = await fetch(getListActorsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: listActorsResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as listActorsResponse
+}
+
+
+
+
+
+export const getListActorsQueryKey = () => {
+    return [
+    `/api/actors`
+    ] as const;
+    }
+
+
+export const getListActorsQueryOptions = <TData = Awaited<ReturnType<typeof listActors>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActors>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListActorsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listActors>>> = ({ signal }) => listActors({ signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listActors>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListActorsQueryResult = NonNullable<Awaited<ReturnType<typeof listActors>>>
+export type ListActorsQueryError = ErrorModel
+
+
+export function useListActors<TData = Awaited<ReturnType<typeof listActors>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActors>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listActors>>,
+          TError,
+          Awaited<ReturnType<typeof listActors>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListActors<TData = Awaited<ReturnType<typeof listActors>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActors>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listActors>>,
+          TError,
+          Awaited<ReturnType<typeof listActors>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListActors<TData = Awaited<ReturnType<typeof listActors>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActors>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List reusable workspace actors
+ */
+
+export function useListActors<TData = Awaited<ReturnType<typeof listActors>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listActors>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListActorsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export type getBootstrapResponse200 = {
   data: Bootstrap
@@ -2424,6 +2558,475 @@ export function useListScenarios<TData = Awaited<ReturnType<typeof listScenarios
 
 
 
+
+export type getSuiteResponse200 = {
+  data: SuiteDetail
+  status: 200
+}
+
+export type getSuiteResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type getSuiteResponseSuccess = (getSuiteResponse200) & {
+  headers: Headers;
+};
+export type getSuiteResponseError = (getSuiteResponseDefault) & {
+  headers: Headers;
+};
+
+export type getSuiteResponse = (getSuiteResponseSuccess | getSuiteResponseError)
+
+export const getGetSuiteUrl = (params?: GetSuiteParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/suite?${stringifiedParams}` : `/api/suite`
+}
+
+/**
+ * @summary Get a suite
+ */
+export const getSuite = async (params?: GetSuiteParams, options?: RequestInit): Promise<getSuiteResponse> => {
+
+  const res = await fetch(getGetSuiteUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getSuiteResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getSuiteResponse
+}
+
+
+
+
+
+export const getGetSuiteQueryKey = (params?: GetSuiteParams,) => {
+    return [
+    `/api/suite`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSuiteQueryOptions = <TData = Awaited<ReturnType<typeof getSuite>>, TError = ErrorModel>(params?: GetSuiteParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSuite>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSuiteQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuite>>> = ({ signal }) => getSuite(params, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSuite>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSuiteQueryResult = NonNullable<Awaited<ReturnType<typeof getSuite>>>
+export type GetSuiteQueryError = ErrorModel
+
+
+export function useGetSuite<TData = Awaited<ReturnType<typeof getSuite>>, TError = ErrorModel>(
+ params: undefined |  GetSuiteParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSuite>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSuite>>,
+          TError,
+          Awaited<ReturnType<typeof getSuite>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSuite<TData = Awaited<ReturnType<typeof getSuite>>, TError = ErrorModel>(
+ params?: GetSuiteParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSuite>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSuite>>,
+          TError,
+          Awaited<ReturnType<typeof getSuite>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSuite<TData = Awaited<ReturnType<typeof getSuite>>, TError = ErrorModel>(
+ params?: GetSuiteParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSuite>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get a suite
+ */
+
+export function useGetSuite<TData = Awaited<ReturnType<typeof getSuite>>, TError = ErrorModel>(
+ params?: GetSuiteParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSuite>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSuiteQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export type runSuiteResponse200 = {
+  data: SuiteResult
+  status: 200
+}
+
+export type runSuiteResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type runSuiteResponseSuccess = (runSuiteResponse200) & {
+  headers: Headers;
+};
+export type runSuiteResponseError = (runSuiteResponseDefault) & {
+  headers: Headers;
+};
+
+export type runSuiteResponse = (runSuiteResponseSuccess | runSuiteResponseError)
+
+export const getRunSuiteUrl = () => {
+
+
+
+
+  return `/api/suite-runs`
+}
+
+/**
+ * @summary Run a suite and enforce its thresholds
+ */
+export const runSuite = async (suiteRunRequest: NonReadonly<SuiteRunRequest>, options?: RequestInit): Promise<runSuiteResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+const res = await fetch(getRunSuiteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(suiteRunRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: runSuiteResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as runSuiteResponse
+}
+
+
+
+
+
+export const getRunSuiteMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runSuite>>, TError,RunSuiteMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof runSuite>>, TError,RunSuiteMutationVariables, TContext> => {
+
+const mutationKey = ['runSuite'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runSuite>>, RunSuiteMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  runSuite(data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunSuiteMutationResult = NonNullable<Awaited<ReturnType<typeof runSuite>>>
+    export type RunSuiteMutationBody = NonReadonly<SuiteRunRequest>
+    export type RunSuiteMutationError = ErrorModel
+    export type RunSuiteMutationVariables = {data: NonReadonly<SuiteRunRequest>}
+
+    /**
+ * @summary Run a suite and enforce its thresholds
+ */
+export const useRunSuite = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runSuite>>, TError,RunSuiteMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof runSuite>>,
+        TError,
+        RunSuiteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRunSuiteMutationOptions(options), queryClient);
+    }
+
+export type listSuitesResponse200 = {
+  data: SuitesResponse
+  status: 200
+}
+
+export type listSuitesResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listSuitesResponseSuccess = (listSuitesResponse200) & {
+  headers: Headers;
+};
+export type listSuitesResponseError = (listSuitesResponseDefault) & {
+  headers: Headers;
+};
+
+export type listSuitesResponse = (listSuitesResponseSuccess | listSuitesResponseError)
+
+export const getListSuitesUrl = () => {
+
+
+
+
+  return `/api/suites`
+}
+
+/**
+ * @summary List built-in and custom suites
+ */
+export const listSuites = async ( options?: RequestInit): Promise<listSuitesResponse> => {
+
+  const res = await fetch(getListSuitesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: listSuitesResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as listSuitesResponse
+}
+
+
+
+
+
+export const getListSuitesQueryKey = () => {
+    return [
+    `/api/suites`
+    ] as const;
+    }
+
+
+export const getListSuitesQueryOptions = <TData = Awaited<ReturnType<typeof listSuites>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuites>>, TError, TData>>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSuitesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSuites>>> = ({ signal }) => listSuites({ signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSuites>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSuitesQueryResult = NonNullable<Awaited<ReturnType<typeof listSuites>>>
+export type ListSuitesQueryError = ErrorModel
+
+
+export function useListSuites<TData = Awaited<ReturnType<typeof listSuites>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuites>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSuites>>,
+          TError,
+          Awaited<ReturnType<typeof listSuites>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSuites<TData = Awaited<ReturnType<typeof listSuites>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuites>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSuites>>,
+          TError,
+          Awaited<ReturnType<typeof listSuites>>
+        > , 'initialData'
+      >, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSuites<TData = Awaited<ReturnType<typeof listSuites>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuites>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List built-in and custom suites
+ */
+
+export function useListSuites<TData = Awaited<ReturnType<typeof listSuites>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuites>>, TError, TData>>, fetch?: RequestInit}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSuitesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export type runWorkflowResponse200 = {
+  data: WorkflowResult
+  status: 200
+}
+
+export type runWorkflowResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type runWorkflowResponseSuccess = (runWorkflowResponse200) & {
+  headers: Headers;
+};
+export type runWorkflowResponseError = (runWorkflowResponseDefault) & {
+  headers: Headers;
+};
+
+export type runWorkflowResponse = (runWorkflowResponseSuccess | runWorkflowResponseError)
+
+export const getRunWorkflowUrl = () => {
+
+
+
+
+  return `/api/workflow-runs`
+}
+
+/**
+ * @summary Run a single-event or timeline scenario
+ */
+export const runWorkflow = async (scenarioRunRequest: NonReadonly<ScenarioRunRequest>, options?: RequestInit): Promise<runWorkflowResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+const res = await fetch(getRunWorkflowUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(scenarioRunRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: runWorkflowResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as runWorkflowResponse
+}
+
+
+
+
+
+export const getRunWorkflowMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runWorkflow>>, TError,RunWorkflowMutationVariables, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof runWorkflow>>, TError,RunWorkflowMutationVariables, TContext> => {
+
+const mutationKey = ['runWorkflow'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runWorkflow>>, RunWorkflowMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  runWorkflow(data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunWorkflowMutationResult = NonNullable<Awaited<ReturnType<typeof runWorkflow>>>
+    export type RunWorkflowMutationBody = NonReadonly<ScenarioRunRequest>
+    export type RunWorkflowMutationError = ErrorModel
+    export type RunWorkflowMutationVariables = {data: NonReadonly<ScenarioRunRequest>}
+
+    /**
+ * @summary Run a single-event or timeline scenario
+ */
+export const useRunWorkflow = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runWorkflow>>, TError,RunWorkflowMutationVariables, TContext>, fetch?: RequestInit}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof runWorkflow>>,
+        TError,
+        RunWorkflowMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRunWorkflowMutationOptions(options), queryClient);
+    }
 
 export type getWorkspaceResponse200 = {
   data: Workspace

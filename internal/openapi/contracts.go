@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/egekocabas/kick-sim/internal/actors"
 	"github.com/egekocabas/kick-sim/internal/history"
+	"github.com/egekocabas/kick-sim/internal/suite"
+	"github.com/egekocabas/kick-sim/internal/workflow"
 )
 
 type Backend interface {
@@ -23,6 +26,11 @@ type Backend interface {
 	SaveScenarioSource(context.Context, ScenarioSourceSaveRequest) (ScenarioDetail, error)
 	SaveScenarioSourceCopy(context.Context, ScenarioSourceCopyRequest) (ScenarioDetail, error)
 	RunScenario(context.Context, ScenarioRunRequest) (DeliveryResult, error)
+	ListActors(context.Context) (map[string]actors.User, error)
+	RunWorkflow(context.Context, ScenarioRunRequest) (workflow.WorkflowResult, error)
+	ListSuites(context.Context) ([]SuiteSummary, error)
+	GetSuite(context.Context, string) (SuiteDetail, error)
+	RunSuite(context.Context, SuiteRunRequest) (suite.SuiteResult, error)
 	ListActivity(context.Context, int, int) ([]history.Activity, error)
 	GetAttempt(context.Context, string) (DeliveryAttemptDetail, error)
 	ReplayAttempt(context.Context, string, string) (DeliveryResult, error)
@@ -109,6 +117,7 @@ type ScenarioSummary struct {
 	Name             string   `json:"name"`
 	Description      string   `json:"description,omitempty"`
 	BuiltIn          bool     `json:"builtIn"`
+	Kind             string   `json:"kind" enum:"single,timeline"`
 	EventType        string   `json:"eventType"`
 	EventVersion     int      `json:"eventVersion"`
 	Revision         string   `json:"revision"`
@@ -116,6 +125,21 @@ type ScenarioSummary struct {
 	SourceFormat     string   `json:"sourceFormat" enum:"yaml,json"`
 	Valid            bool     `json:"valid"`
 	ValidationErrors []string `json:"validationErrors,omitempty"`
+}
+
+type SuiteSummary struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	BuiltIn     bool   `json:"builtIn"`
+	Cases       int    `json:"cases"`
+	Valid       bool   `json:"valid"`
+	Error       string `json:"error,omitempty"`
+}
+
+type SuiteDetail struct {
+	SuiteSummary
+	Source string `json:"source"`
 }
 
 type ScenarioDetail struct {
@@ -151,6 +175,12 @@ type ScenarioRunRequest struct {
 	Destination    string         `json:"destination,omitempty"`
 	DestinationURL string         `json:"destinationUrl,omitempty"`
 	SubscriptionID string         `json:"subscriptionId,omitempty"`
+}
+
+type SuiteRunRequest struct {
+	SuiteID        string `json:"suiteId" minLength:"1"`
+	Destination    string `json:"destination,omitempty"`
+	DestinationURL string `json:"destinationUrl,omitempty"`
 }
 
 type ReplayRequest struct {

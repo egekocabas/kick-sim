@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.2.0
  */
 import type { ScenarioDetailDraftPayload } from './scenarioDetailDraftPayload';
+import type { ScenarioDetailKind } from './scenarioDetailKind';
 import type { ScenarioDetailPayload } from './scenarioDetailPayload';
 import type { ScenarioDetailSourceFormat } from './scenarioDetailSourceFormat';
 
@@ -20,6 +21,7 @@ export interface ScenarioDetail {
   /** @nullable */
   expectedStatuses?: number[] | null;
   id: string;
+  kind: ScenarioDetailKind;
   name: string;
   payload?: ScenarioDetailPayload;
   revision: string;

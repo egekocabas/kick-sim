@@ -2,20 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   duplicateScenario, generateEvent, getBootstrap, getDeliveryAttempt, getScenario,
-  getSimulatorKeyInfo, getSimulatorPublicKey, listRuns, listScenarios,
+  getSimulatorKeyInfo, getSimulatorPublicKey, listRuns, listScenarios, listSuites,
   replayDeliveryAttempt, rotateSimulatorKey, saveScenarioSourceCopy, triggerEvent,
-  updateScenarioSource, validateEvent,
+  updateScenarioSource, validateEvent, runSuite, runWorkflow,
 } from "./api/generated/client";
 import type {
   Activity, Bootstrap, DeliveryAttemptDetail, DeliveryResult, KeyInfo,
-  ScenarioDetail, ScenarioSummary,
+  ScenarioDetail, ScenarioSummary, SuiteResult, SuiteSummary, WorkflowResult,
 } from "./api/generated/models";
 
-type Page = "Dashboard" | "Events" | "Scenarios" | "Activity" | "Destinations" | "Keys & setup" | "Settings" | "API docs";
+type Page = "Dashboard" | "Events" | "Scenarios" | "Workflows" | "Activity" | "Destinations" | "Keys & setup" | "Settings" | "API docs";
 type EditorView = "form" | "json" | "http";
 type JSONObject = Record<string, unknown>;
 
-const navigation: Page[] = ["Dashboard", "Events", "Scenarios", "Activity", "Destinations", "Keys & setup", "Settings", "API docs"];
+const navigation: Page[] = ["Dashboard", "Events", "Scenarios", "Workflows", "Activity", "Destinations", "Keys & setup", "Settings", "API docs"];
 
 function successful<T>(response: { status: number; data: T | unknown }): T {
   if (response.status < 200 || response.status >= 300) {
@@ -46,6 +46,7 @@ export function App() {
       {page === "Dashboard" && <Dashboard bootstrap={bootstrap.data} onNavigate={setPage} />}
       {page === "Events" && <EventBuilder initialScenarioID={scenarioID} />}
       {page === "Scenarios" && <Scenarios onOpen={(id) => { setScenarioID(id); setPage("Events"); }} />}
+      {page === "Workflows" && <Workflows />}
       {page === "Activity" && <ActivityPage />}
       {page === "Destinations" && <Destinations bootstrap={bootstrap.data} />}
       {page === "Keys & setup" && <Keys />}
@@ -76,7 +77,7 @@ function EventBuilder({ initialScenarioID }: { initialScenarioID?: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const validation = useRef(0);
-  const scenariosQuery = useQuery({ queryKey: ["scenarios", "valid"], queryFn: async () => successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items?.filter((item) => item.valid !== false) ?? [] });
+  const scenariosQuery = useQuery({ queryKey: ["scenarios", "valid"], queryFn: async () => successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items?.filter((item) => item.valid !== false && item.kind !== "timeline") ?? [] });
   useEffect(() => { if (!selectedID && scenariosQuery.data?.[0]) setSelectedID(scenariosQuery.data[0].id); }, [selectedID, scenariosQuery.data]);
   const scenarioQuery = useQuery({ queryKey: ["scenario", selectedID], enabled: Boolean(selectedID), queryFn: async () => successful<ScenarioDetail>(await getScenario({ id: selectedID })) });
   useEffect(() => { if (scenarioQuery.data) { const value = scenarioQuery.data.draftPayload as JSONObject; setDraft(value); setRaw(JSON.stringify(value, null, 2)); setRawError(""); setPreview(""); setResult(undefined); } }, [scenarioQuery.data]);
@@ -139,7 +140,7 @@ function ValueEditor({ label, value, onChange }: { label: string; value: unknown
 function Scenarios({ onOpen }: { onOpen: (id: string) => void }) {
   const queryClient = useQueryClient();
   const [editingID, setEditingID] = useState("");
-  const query = useQuery({ queryKey: ["scenarios"], queryFn: async () => successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items ?? [], refetchInterval: 1500 });
+  const query = useQuery({ queryKey: ["scenarios"], queryFn: async () => (successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items ?? []).filter((item) => item.kind !== "timeline"), refetchInterval: 1500 });
   const duplicate = async (item: ScenarioSummary) => { const id = window.prompt("New scenario ID", `${item.id}-copy`); if (!id) return; const detail = successful<ScenarioDetail>(await getScenario({ id: item.id })); successful(await duplicateScenario({ sourceId: item.id, targetId: id, payload: detail.draftPayload as JSONObject })); await queryClient.invalidateQueries({ queryKey: ["scenarios"] }); };
   return <div className="page-content">
     <Section title="Scenario library" hint="Built-ins remain immutable; custom source files stay authoritative">
@@ -151,6 +152,43 @@ function Scenarios({ onOpen }: { onOpen: (id: string) => void }) {
       </article>)}</div>
     </Section>
     {editingID && <ScenarioSourceEditor id={editingID} onClose={() => setEditingID("")} onSelect={setEditingID} />}
+  </div>;
+}
+
+function Workflows() {
+  const queryClient = useQueryClient();
+  const timelines = useQuery({ queryKey: ["scenarios", "timelines"], queryFn: async () => (successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items ?? []).filter((item) => item.kind === "timeline") });
+  const suites = useQuery({ queryKey: ["suites"], queryFn: async () => successful<{ items: SuiteSummary[] | null }>(await listSuites()).items ?? [] });
+  const [busy, setBusy] = useState("");
+  const [message, setMessage] = useState("");
+  const [report, setReport] = useState<WorkflowResult | SuiteResult>();
+  const executeTimeline = async (item: ScenarioSummary) => {
+    setBusy(item.id); setMessage(""); setReport(undefined);
+    try {
+      const value = successful<WorkflowResult>(await runWorkflow({ scenarioId: item.id }));
+      setReport(value); setMessage(`${value.deliveries?.length ?? 0} deliveries passed`);
+      await queryClient.invalidateQueries({ queryKey: ["activity"] });
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(""); }
+  };
+  const executeSuite = async (item: SuiteSummary) => {
+    setBusy(item.id); setMessage(""); setReport(undefined);
+    try {
+      const value = successful<SuiteResult>(await runSuite({ suiteId: item.id }));
+      setReport(value); setMessage(`${value.passedCases} passed, ${value.failedCases} failed`);
+      await queryClient.invalidateQueries({ queryKey: ["activity"] });
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(""); }
+  };
+  return <div className="page-content">
+    <Section title="Timeline scenarios" hint="Multi-step workflows use deterministic logical time and retain every delivery attempt">
+      <div className="card-grid">{timelines.data?.map((item) => <article className="item-card" key={item.id}><span className="badge">{item.builtIn ? "Built-in" : "Custom"}</span><h3>{item.name}</h3><p>{item.description}</p><code>{item.id}</code><div className="button-row"><button className="primary" disabled={!item.valid || Boolean(busy)} onClick={() => void executeTimeline(item)}>{busy === item.id ? "Running…" : "Run timeline"}</button></div></article>)}</div>
+    </Section>
+    <Section title="Scenario suites" hint="Thresholds produce deterministic pass/fail results for local runs and CI">
+      <div className="card-grid">{suites.data?.map((item) => <article className="item-card" key={item.id}><span className={`badge ${!item.valid ? "invalid" : ""}`}>{item.builtIn ? "Built-in" : "Custom"}</span><h3>{item.name}</h3><p>{item.description || item.error}</p><code>{item.cases} cases · {item.id}</code><div className="button-row"><button className="primary" disabled={!item.valid || Boolean(busy)} onClick={() => void executeSuite(item)}>{busy === item.id ? "Running…" : "Run suite"}</button></div></article>)}</div>
+    </Section>
+    {message && <Notice tone={report?.passed ? "success" : "error"}>{message}</Notice>}
+    {report && <Section title="Latest result" hint={"suiteId" in report ? report.suiteId : report.scenarioId}><Code value={report} /></Section>}
   </div>;
 }
 
