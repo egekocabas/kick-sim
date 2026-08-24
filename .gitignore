@@ -4,3 +4,6 @@
 /dist/
 /web/dist/
 /web/node_modules/
+/web/.e2e-workspace/
+/web/test-results/
+/web/playwright-report/
