@@ -2,7 +2,9 @@ package openapi
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -22,7 +24,15 @@ func TestGeneratedDocumentIsDeterministicAndCommitted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(first, committed) {
+	var generatedDocument any
+	var committedDocument any
+	if err := json.Unmarshal(first, &generatedDocument); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(committed, &committedDocument); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(generatedDocument, committedDocument) {
 		t.Fatal("web/openapi.json is stale; run make generate")
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/egekocabas/kick-sim/internal/config"
@@ -54,7 +55,11 @@ func Open(path string, settings config.History) (*Store, error) {
 		return nil, fmt.Errorf("inspect history database: %w", statErr)
 	}
 
-	databaseURL := &url.URL{Scheme: "file", Path: absolute}
+	databasePath := filepath.ToSlash(absolute)
+	if filepath.VolumeName(absolute) != "" && !strings.HasPrefix(databasePath, "/") {
+		databasePath = "/" + databasePath
+	}
+	databaseURL := &url.URL{Scheme: "file", Path: databasePath}
 	query := databaseURL.Query()
 	query.Set("_foreign_keys", "on")
 	query.Set("_journal_mode", "WAL")
