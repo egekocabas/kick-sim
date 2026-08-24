@@ -989,23 +989,44 @@
           "revision": {
             "type": "string"
           },
+          "source": {
+            "type": "string"
+          },
+          "sourceFormat": {
+            "enum": [
+              "yaml",
+              "json"
+            ],
+            "type": "string"
+          },
           "sourceVersion": {
             "format": "int64",
             "type": "integer"
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "validationErrors": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
-          "payload",
-          "draftPayload",
-          "destination",
-          "expectedStatuses",
+          "source",
           "id",
           "name",
           "builtIn",
           "eventType",
           "eventVersion",
           "revision",
-          "sourceVersion"
+          "sourceVersion",
+          "sourceFormat",
+          "valid"
         ],
         "type": "object"
       },
@@ -1044,6 +1065,70 @@
         ],
         "type": "object"
       },
+      "ScenarioSourceCopyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/ScenarioSourceCopyRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "source": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "targetId": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceId",
+          "targetId",
+          "source"
+        ],
+        "type": "object"
+      },
+      "ScenarioSourceSaveRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/ScenarioSourceSaveRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "source": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "source"
+        ],
+        "type": "object"
+      },
       "ScenarioSummary": {
         "additionalProperties": false,
         "properties": {
@@ -1069,9 +1154,28 @@
           "revision": {
             "type": "string"
           },
+          "sourceFormat": {
+            "enum": [
+              "yaml",
+              "json"
+            ],
+            "type": "string"
+          },
           "sourceVersion": {
             "format": "int64",
             "type": "integer"
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "validationErrors": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1081,7 +1185,9 @@
           "eventType",
           "eventVersion",
           "revision",
-          "sourceVersion"
+          "sourceVersion",
+          "sourceFormat",
+          "valid"
         ],
         "type": "object"
       },
@@ -1726,6 +1832,42 @@
           }
         },
         "summary": "Get a scenario"
+      },
+      "put": {
+        "operationId": "updateScenarioSource",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioSourceSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioDetail"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Validate and save scenario source"
       }
     },
     "/api/scenario-duplicates": {
@@ -1802,6 +1944,44 @@
           }
         },
         "summary": "Run a scenario working copy"
+      }
+    },
+    "/api/scenario-source-copies": {
+      "post": {
+        "operationId": "saveScenarioSourceCopy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioSourceCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioDetail"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Validate and save scenario source as a canonical copy"
       }
     },
     "/api/scenarios": {

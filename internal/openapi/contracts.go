@@ -20,6 +20,8 @@ type Backend interface {
 	ListScenarios(context.Context) ([]ScenarioSummary, error)
 	GetScenario(context.Context, string) (ScenarioDetail, error)
 	SaveScenarioCopy(context.Context, ScenarioCopyRequest) (ScenarioDetail, error)
+	SaveScenarioSource(context.Context, ScenarioSourceSaveRequest) (ScenarioDetail, error)
+	SaveScenarioSourceCopy(context.Context, ScenarioSourceCopyRequest) (ScenarioDetail, error)
 	RunScenario(context.Context, ScenarioRunRequest) (DeliveryResult, error)
 	ListActivity(context.Context, int, int) ([]history.Activity, error)
 	GetAttempt(context.Context, string) (DeliveryAttemptDetail, error)
@@ -103,28 +105,44 @@ type DeliveryResult struct {
 }
 
 type ScenarioSummary struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Description   string `json:"description,omitempty"`
-	BuiltIn       bool   `json:"builtIn"`
-	EventType     string `json:"eventType"`
-	EventVersion  int    `json:"eventVersion"`
-	Revision      string `json:"revision"`
-	SourceVersion int    `json:"sourceVersion"`
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
+	Description      string   `json:"description,omitempty"`
+	BuiltIn          bool     `json:"builtIn"`
+	EventType        string   `json:"eventType"`
+	EventVersion     int      `json:"eventVersion"`
+	Revision         string   `json:"revision"`
+	SourceVersion    int      `json:"sourceVersion"`
+	SourceFormat     string   `json:"sourceFormat" enum:"yaml,json"`
+	Valid            bool     `json:"valid"`
+	ValidationErrors []string `json:"validationErrors,omitempty"`
 }
 
 type ScenarioDetail struct {
 	ScenarioSummary
-	Payload          map[string]any `json:"payload"`
-	DraftPayload     map[string]any `json:"draftPayload"`
-	Destination      string         `json:"destination"`
-	ExpectedStatuses []int          `json:"expectedStatuses"`
+	Source           string         `json:"source"`
+	Payload          map[string]any `json:"payload,omitempty"`
+	DraftPayload     map[string]any `json:"draftPayload,omitempty"`
+	Destination      string         `json:"destination,omitempty"`
+	ExpectedStatuses []int          `json:"expectedStatuses,omitempty"`
 }
 
 type ScenarioCopyRequest struct {
 	SourceID string         `json:"sourceId" minLength:"1"`
 	TargetID string         `json:"targetId" minLength:"1"`
 	Payload  map[string]any `json:"payload"`
+}
+
+type ScenarioSourceSaveRequest struct {
+	ID       string `json:"id" minLength:"1"`
+	Revision string `json:"revision" pattern:"^sha256:[a-f0-9]{64}$"`
+	Source   string `json:"source" minLength:"1"`
+}
+
+type ScenarioSourceCopyRequest struct {
+	SourceID string `json:"sourceId" minLength:"1"`
+	TargetID string `json:"targetId" minLength:"1"`
+	Source   string `json:"source" minLength:"1"`
 }
 
 type ScenarioRunRequest struct {

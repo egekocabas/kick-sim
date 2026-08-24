@@ -26,6 +26,7 @@ var capabilities = []string{
 	"studio.dashboard",
 	"studio.event-builder",
 	"studio.scenarios",
+	"studio.scenario-source-editor",
 	"studio.activity",
 	"studio.delivery-inspection",
 	"studio.replay.exact",
@@ -172,6 +173,22 @@ func (backend *Backend) SaveScenarioCopy(_ context.Context, request kickopenapi.
 	return backend.scenarioDetail(entry)
 }
 
+func (backend *Backend) SaveScenarioSource(_ context.Context, request kickopenapi.ScenarioSourceSaveRequest) (kickopenapi.ScenarioDetail, error) {
+	entry, err := backend.scenarios().SaveSource(request.ID, request.Revision, []byte(request.Source))
+	if err != nil {
+		return kickopenapi.ScenarioDetail{}, err
+	}
+	return backend.scenarioDetail(entry)
+}
+
+func (backend *Backend) SaveScenarioSourceCopy(_ context.Context, request kickopenapi.ScenarioSourceCopyRequest) (kickopenapi.ScenarioDetail, error) {
+	entry, err := backend.scenarios().SaveSourceAsCopy(request.SourceID, request.TargetID, []byte(request.Source), "kick-sim@"+version.Version)
+	if err != nil {
+		return kickopenapi.ScenarioDetail{}, err
+	}
+	return backend.scenarioDetail(entry)
+}
+
 func (backend *Backend) RunScenario(ctx context.Context, request kickopenapi.ScenarioRunRequest) (kickopenapi.DeliveryResult, error) {
 	entry, err := backend.scenarios().Get(request.ScenarioID)
 	if err != nil {
@@ -311,6 +328,13 @@ func (backend *Backend) scenarios() *scenario.Store {
 }
 
 func (backend *Backend) scenarioDetail(entry scenario.Entry) (kickopenapi.ScenarioDetail, error) {
+	detail := kickopenapi.ScenarioDetail{
+		ScenarioSummary: scenarioSummary(entry),
+		Source:          string(entry.Source),
+	}
+	if err := backend.scenarios().Validate(entry); err != nil {
+		return detail, nil
+	}
 	draft, err := backend.service.GeneratePayload(app.PayloadOptions{
 		EventType:    entry.Scenario.Request.Event.Type,
 		EventVersion: entry.Scenario.Request.Event.Version,
@@ -320,13 +344,11 @@ func (backend *Backend) scenarioDetail(entry scenario.Entry) (kickopenapi.Scenar
 	if err != nil {
 		return kickopenapi.ScenarioDetail{}, err
 	}
-	return kickopenapi.ScenarioDetail{
-		ScenarioSummary:  scenarioSummary(entry),
-		Payload:          events.DeepCopyMap(entry.Scenario.Request.Payload),
-		DraftPayload:     draft,
-		Destination:      entry.Scenario.Request.Delivery.Destination,
-		ExpectedStatuses: append([]int(nil), entry.Scenario.Request.Delivery.Expect.Statuses...),
-	}, nil
+	detail.Payload = events.DeepCopyMap(entry.Scenario.Request.Payload)
+	detail.DraftPayload = draft
+	detail.Destination = entry.Scenario.Request.Delivery.Destination
+	detail.ExpectedStatuses = append([]int(nil), entry.Scenario.Request.Delivery.Expect.Statuses...)
+	return detail, nil
 }
 
 func (backend *Backend) deliveryOptions(request kickopenapi.EventPayloadRequest) (app.PayloadOptions, error) {
@@ -362,14 +384,17 @@ func eventContract(definition events.Definition) kickopenapi.EventContract {
 
 func scenarioSummary(entry scenario.Entry) kickopenapi.ScenarioSummary {
 	return kickopenapi.ScenarioSummary{
-		ID:            entry.ID,
-		Name:          entry.Scenario.Name,
-		Description:   entry.Scenario.Description,
-		BuiltIn:       entry.BuiltIn,
-		EventType:     entry.Scenario.Request.Event.Type,
-		EventVersion:  entry.Scenario.Request.Event.Version,
-		Revision:      entry.Revision,
-		SourceVersion: entry.SourceVersion,
+		ID:               entry.ID,
+		Name:             entry.Scenario.Name,
+		Description:      entry.Scenario.Description,
+		BuiltIn:          entry.BuiltIn,
+		EventType:        entry.Scenario.Request.Event.Type,
+		EventVersion:     entry.Scenario.Request.Event.Version,
+		Revision:         entry.Revision,
+		SourceVersion:    entry.SourceVersion,
+		SourceFormat:     entry.SourceFormat,
+		Valid:            len(entry.ValidationErrors) == 0,
+		ValidationErrors: append([]string(nil), entry.ValidationErrors...),
 	}
 }
 

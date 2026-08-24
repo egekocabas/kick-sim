@@ -1,9 +1,13 @@
 package scenario
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/egekocabas/kick-sim/internal/app"
@@ -109,4 +113,170 @@ func TestCopyRejectsSymlinkEscape(t *testing.T) {
 	if _, err := store.Copy("builtin:chat/basic-message", "escape/copied", "kick-sim@test"); err == nil {
 		t.Fatal("Copy() followed a symlink outside the scenarios directory")
 	}
+}
+
+func TestSaveSourceValidatesAndAtomicallyPreservesExactText(t *testing.T) {
+	t.Parallel()
+
+	store := newTestStore(t)
+	entry, err := store.Copy("builtin:chat/basic-message", "editing/basic", "kick-sim@test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated := []byte("# kept exactly as submitted\n" + strings.Replace(string(entry.Source), "Hello from Kick Sim", "Edited in Studio", 1))
+	saved, err := store.SaveSource(entry.ID, entry.Revision, updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(saved.Source, updated) {
+		t.Fatal("SaveSource() did not retain the submitted source bytes")
+	}
+	onDisk, err := os.ReadFile(entry.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(onDisk, updated) {
+		t.Fatal("saved file differs from submitted source")
+	}
+	if saved.Revision == entry.Revision {
+		t.Fatal("source revision did not change")
+	}
+	if temporary, err := filepath.Glob(filepath.Join(filepath.Dir(entry.Path), ".kick-sim-scenario-*")); err != nil || len(temporary) != 0 {
+		t.Fatalf("temporary scenario files remain after save: %v, %v", temporary, err)
+	}
+
+	invalid := []byte("version: [\n")
+	if _, err := store.SaveSource(entry.ID, saved.Revision, invalid); err == nil {
+		t.Fatal("SaveSource() accepted invalid source")
+	} else {
+		var validation *SourceValidationError
+		if !errors.As(err, &validation) {
+			t.Fatalf("invalid source error = %T, want *SourceValidationError", err)
+		}
+	}
+	afterInvalid, err := os.ReadFile(entry.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(afterInvalid, updated) {
+		t.Fatal("invalid save changed the valid file")
+	}
+}
+
+func TestSaveSourceRejectsExternalRevisionAndReportsInvalidFiles(t *testing.T) {
+	t.Parallel()
+
+	store := newTestStore(t)
+	entry, err := store.Copy("builtin:chat/basic-message", "editing/conflict", "kick-sim@test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	external := []byte(strings.Replace(string(entry.Source), "Hello from Kick Sim", "Changed outside Studio", 1))
+	if err := os.WriteFile(entry.Path, external, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	studioDraft := []byte(strings.Replace(string(entry.Source), "Hello from Kick Sim", "Changed in Studio", 1))
+	if _, err := store.SaveSource(entry.ID, entry.Revision, studioDraft); err == nil {
+		t.Fatal("SaveSource() overwrote an external revision")
+	} else {
+		var conflict *RevisionConflictError
+		if !errors.As(err, &conflict) {
+			t.Fatalf("conflict error = %T, want *RevisionConflictError", err)
+		}
+		if conflict.Expected != entry.Revision || conflict.Actual != revision(external) {
+			t.Fatalf("conflict = %#v", conflict)
+		}
+	}
+	onDisk, err := os.ReadFile(entry.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(onDisk, external) {
+		t.Fatal("revision conflict changed the external file")
+	}
+
+	invalid := []byte("not: [valid\n")
+	if err := os.WriteFile(entry.Path, invalid, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := store.Get(entry.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed.ValidationErrors) == 0 || !bytes.Equal(listed.Source, invalid) {
+		t.Fatalf("invalid external scenario = %#v", listed)
+	}
+	if err := store.Validate(listed); err == nil {
+		t.Fatal("invalid external scenario is executable")
+	}
+}
+
+func TestSaveSourceAsCopyUsesCanonicalFormattingAndDoesNotOverwrite(t *testing.T) {
+	t.Parallel()
+
+	store := newTestStore(t)
+	source, err := store.Get("builtin:chat/basic-message")
+	if err != nil {
+		t.Fatal(err)
+	}
+	copy, err := store.SaveSourceAsCopy(source.ID, "editing/source-copy", source.Source, "kick-sim@test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if copy.Scenario.Metadata.Source != source.ID || copy.Scenario.Metadata.CreatedWith != "kick-sim@test" {
+		t.Fatalf("copy metadata = %#v", copy.Scenario.Metadata)
+	}
+	if _, err := store.SaveSourceAsCopy(source.ID, copy.ID, source.Source, "kick-sim@test"); err == nil {
+		t.Fatal("SaveSourceAsCopy() overwrote an existing scenario")
+	}
+}
+
+func TestSaveSourceSupportsJSONScenarioFiles(t *testing.T) {
+	t.Parallel()
+
+	store := newTestStore(t)
+	builtIn, err := store.Get("builtin:chat/basic-message")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.MarshalIndent(builtIn.Scenario, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = append(data, '\n')
+	path := filepath.Join(store.workspaceRoot, "scenarios", "editing", "json-message.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	entry, err := store.Get("editing/json-message")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.SourceFormat != "json" {
+		t.Fatalf("source format = %q", entry.SourceFormat)
+	}
+	updated := bytes.Replace(data, []byte("Basic chat message"), []byte("Edited JSON message"), 1)
+	saved, err := store.SaveSource(entry.ID, entry.Revision, updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.SourceFormat != "json" || !bytes.Equal(saved.Source, updated) {
+		t.Fatalf("saved JSON entry = %#v", saved)
+	}
+}
+
+func newTestStore(t *testing.T) *Store {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	if _, err := workspace.Init(root); err != nil {
+		t.Fatal(err)
+	}
+	service, err := app.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewStore(root, service.Events, service.Config)
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -21,13 +22,35 @@ import (
 var scenarioSegment = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 type Entry struct {
-	ID            string   `json:"id"`
-	BuiltIn       bool     `json:"builtIn"`
-	Path          string   `json:"path,omitempty"`
-	Scenario      Scenario `json:"scenario"`
-	Source        []byte   `json:"-"`
-	Revision      string   `json:"revision"`
-	SourceVersion int      `json:"sourceVersion"`
+	ID               string   `json:"id"`
+	BuiltIn          bool     `json:"builtIn"`
+	Path             string   `json:"path,omitempty"`
+	Scenario         Scenario `json:"scenario"`
+	Source           []byte   `json:"-"`
+	SourceFormat     string   `json:"sourceFormat"`
+	Revision         string   `json:"revision"`
+	SourceVersion    int      `json:"sourceVersion"`
+	ValidationErrors []string `json:"validationErrors,omitempty"`
+	validationError  error
+}
+
+type RevisionConflictError struct {
+	Expected string
+	Actual   string
+}
+
+func (problem *RevisionConflictError) Error() string {
+	return fmt.Sprintf("scenario changed on disk: expected revision %s, found %s", problem.Expected, problem.Actual)
+}
+
+func (problem *RevisionConflictError) HTTPStatus() int { return 409 }
+
+type SourceValidationError struct {
+	Problems []string
+}
+
+func (problem *SourceValidationError) Error() string {
+	return "scenario source is invalid: " + strings.Join(problem.Problems, "; ")
 }
 
 type Store struct {
@@ -104,29 +127,76 @@ func (store *Store) SaveAsCopy(sourceID, targetID string, payload map[string]any
 	if err != nil {
 		return Entry{}, fmt.Errorf("marshal scenario copy: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-		return Entry{}, fmt.Errorf("create scenario directory: %w", err)
-	}
-	if err := ensureNoSymlinkComponents(filepath.Join(store.workspaceRoot, "scenarios"), targetPath); err != nil {
+	if err := store.writeNew(targetPath, data); err != nil {
 		return Entry{}, err
 	}
-	file, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	return newEntry(targetID, false, targetPath, value, data, 1), nil
+}
+
+func (store *Store) SaveSource(id, expectedRevision string, source []byte) (Entry, error) {
+	if strings.HasPrefix(id, "builtin:") {
+		return Entry{}, errors.New("built-in scenarios are read-only")
+	}
+	entry, err := store.Get(id)
 	if err != nil {
-		return Entry{}, fmt.Errorf("create scenario: %w", err)
+		return Entry{}, err
 	}
-	if _, err := file.Write(data); err != nil {
-		_ = file.Close()
-		_ = os.Remove(targetPath)
-		return Entry{}, fmt.Errorf("write scenario: %w", err)
+	if entry.BuiltIn {
+		return Entry{}, errors.New("built-in scenarios are read-only")
 	}
-	if err := file.Close(); err != nil {
-		_ = os.Remove(targetPath)
-		return Entry{}, fmt.Errorf("close scenario: %w", err)
+	value, err := store.parseAndValidate(source)
+	if err != nil {
+		return Entry{}, err
+	}
+	info, err := os.Lstat(entry.Path)
+	if err != nil {
+		return Entry{}, fmt.Errorf("inspect scenario: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return Entry{}, errors.New("scenario source must be a regular file")
+	}
+	if err := ensureNoSymlinkComponents(filepath.Join(store.workspaceRoot, "scenarios"), entry.Path); err != nil {
+		return Entry{}, err
+	}
+	if err := writeAtomicReplace(entry.Path, source, info.Mode().Perm(), expectedRevision); err != nil {
+		return Entry{}, err
+	}
+	return newEntry(id, false, entry.Path, value, source, entry.SourceVersion), nil
+}
+
+func (store *Store) SaveSourceAsCopy(sourceID, targetID string, source []byte, createdWith string) (Entry, error) {
+	if strings.HasPrefix(targetID, "builtin:") {
+		return Entry{}, errors.New("custom scenario ID cannot use the reserved builtin: prefix")
+	}
+	if err := ValidateID(targetID); err != nil {
+		return Entry{}, err
+	}
+	value, err := store.parseAndValidate(source)
+	if err != nil {
+		return Entry{}, err
+	}
+	value.Metadata = Metadata{Source: sourceID, SourceVersion: 1, CreatedWith: createdWith}
+	data, err := yaml.Marshal(value)
+	if err != nil {
+		return Entry{}, fmt.Errorf("marshal scenario copy: %w", err)
+	}
+	targetPath, err := store.customPath(targetID, ".yaml")
+	if err != nil {
+		return Entry{}, err
+	}
+	if err := rejectScenarioCollision(strings.TrimSuffix(targetPath, ".yaml")); err != nil {
+		return Entry{}, err
+	}
+	if err := store.writeNew(targetPath, data); err != nil {
+		return Entry{}, err
 	}
 	return newEntry(targetID, false, targetPath, value, data, 1), nil
 }
 
 func (store *Store) Validate(entry Entry) error {
+	if entry.validationError != nil {
+		return entry.validationError
+	}
 	return entry.Scenario.Validate(store.registry, store.configuration)
 }
 
@@ -206,27 +276,64 @@ func (store *Store) custom() ([]Entry, error) {
 		if err != nil {
 			return err
 		}
-		value, err := parse(data)
-		if err != nil {
-			return fmt.Errorf("parse scenario %s: %w", id, err)
+		value, validationErr := store.parseAndValidate(data)
+		entry := newEntry(id, false, path, value, data, 1)
+		if validationErr != nil {
+			entry.validationError = validationErr
+			entry.ValidationErrors = errorMessages(validationErr)
 		}
-		entries = append(entries, newEntry(id, false, path, value, data, 1))
+		entries = append(entries, entry)
 		return nil
 	})
 	return entries, err
 }
 
 func newEntry(id string, builtIn bool, path string, value Scenario, source []byte, sourceVersion int) Entry {
-	digest := sha256.Sum256(source)
+	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
+	if format == "" || format == "yml" {
+		format = "yaml"
+	}
 	return Entry{
 		ID:            id,
 		BuiltIn:       builtIn,
 		Path:          path,
 		Scenario:      value,
-		Source:        source,
-		Revision:      "sha256:" + hex.EncodeToString(digest[:]),
+		Source:        append([]byte(nil), source...),
+		SourceFormat:  format,
+		Revision:      revision(source),
 		SourceVersion: sourceVersion,
 	}
+}
+
+func (store *Store) parseAndValidate(data []byte) (Scenario, error) {
+	value, err := parse(data)
+	if err != nil {
+		return Scenario{}, &SourceValidationError{Problems: []string{err.Error()}}
+	}
+	if err := value.Validate(store.registry, store.configuration); err != nil {
+		return value, &SourceValidationError{Problems: errorMessages(err)}
+	}
+	return value, nil
+}
+
+func errorMessages(err error) []string {
+	if problem, ok := err.(*SourceValidationError); ok {
+		return append([]string(nil), problem.Problems...)
+	}
+	type joined interface{ Unwrap() []error }
+	if group, ok := err.(joined); ok {
+		var messages []string
+		for _, child := range group.Unwrap() {
+			messages = append(messages, errorMessages(child)...)
+		}
+		return messages
+	}
+	return []string{err.Error()}
+}
+
+func revision(data []byte) string {
+	digest := sha256.Sum256(data)
+	return "sha256:" + hex.EncodeToString(digest[:])
 }
 
 func parse(data []byte) (Scenario, error) {
@@ -292,6 +399,101 @@ func rejectScenarioCollision(base string) error {
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
+	}
+	return nil
+}
+
+func (store *Store) writeNew(path string, data []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create scenario directory: %w", err)
+	}
+	if err := ensureNoSymlinkComponents(filepath.Join(store.workspaceRoot, "scenarios"), path); err != nil {
+		return err
+	}
+	return writeAtomicNew(path, data, 0o644)
+}
+
+func writeAtomicNew(path string, data []byte, mode os.FileMode) error {
+	temporaryPath, err := writeTemporary(filepath.Dir(path), data, mode)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(temporaryPath)
+	if err := os.Link(temporaryPath, path); err != nil {
+		return fmt.Errorf("create scenario: %w", err)
+	}
+	return syncDirectory(filepath.Dir(path))
+}
+
+func writeAtomicReplace(path string, data []byte, mode os.FileMode, expectedRevision string) error {
+	current, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read current scenario: %w", err)
+	}
+	actualRevision := revision(current)
+	if actualRevision != expectedRevision {
+		return &RevisionConflictError{Expected: expectedRevision, Actual: actualRevision}
+	}
+	temporaryPath, err := writeTemporary(filepath.Dir(path), data, mode)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(temporaryPath)
+
+	current, err = os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("re-read current scenario: %w", err)
+	}
+	actualRevision = revision(current)
+	if actualRevision != expectedRevision {
+		return &RevisionConflictError{Expected: expectedRevision, Actual: actualRevision}
+	}
+	if err := os.Rename(temporaryPath, path); err != nil {
+		return fmt.Errorf("replace scenario: %w", err)
+	}
+	return syncDirectory(filepath.Dir(path))
+}
+
+func writeTemporary(directory string, data []byte, mode os.FileMode) (string, error) {
+	file, err := os.CreateTemp(directory, ".kick-sim-scenario-*")
+	if err != nil {
+		return "", fmt.Errorf("create temporary scenario: %w", err)
+	}
+	path := file.Name()
+	failed := true
+	defer func() {
+		if failed {
+			_ = file.Close()
+			_ = os.Remove(path)
+		}
+	}()
+	if err := file.Chmod(mode); err != nil {
+		return "", fmt.Errorf("set temporary scenario permissions: %w", err)
+	}
+	if _, err := file.Write(data); err != nil {
+		return "", fmt.Errorf("write temporary scenario: %w", err)
+	}
+	if err := file.Sync(); err != nil {
+		return "", fmt.Errorf("sync temporary scenario: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return "", fmt.Errorf("close temporary scenario: %w", err)
+	}
+	failed = false
+	return path, nil
+}
+
+func syncDirectory(path string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	directory, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open scenario directory: %w", err)
+	}
+	defer directory.Close()
+	if err := directory.Sync(); err != nil {
+		return fmt.Errorf("sync scenario directory: %w", err)
 	}
 	return nil
 }

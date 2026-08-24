@@ -4,6 +4,7 @@
  * Kick Sim Studio API
  * OpenAPI spec version: 0.2.0
  */
+import type { ScenarioSummarySourceFormat } from './scenarioSummarySourceFormat';
 
 export interface ScenarioSummary {
   builtIn: boolean;
@@ -13,5 +14,9 @@ export interface ScenarioSummary {
   id: string;
   name: string;
   revision: string;
+  sourceFormat: ScenarioSummarySourceFormat;
   sourceVersion: number;
+  valid: boolean;
+  /** @nullable */
+  validationErrors?: string[] | null;
 }
