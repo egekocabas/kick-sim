@@ -33,6 +33,15 @@ func TestStudioSecurityBoundary(t *testing.T) {
 	if home.Code != http.StatusOK {
 		t.Fatalf("GET / status = %d: %s", home.Code, home.Body.String())
 	}
+	for name, want := range map[string]string{
+		"Content-Security-Policy": "frame-ancestors 'none'",
+		"Permissions-Policy":      "camera=()",
+		"X-Content-Type-Options":  "nosniff",
+	} {
+		if !strings.Contains(home.Header().Get(name), want) {
+			t.Errorf("%s = %q, want to contain %q", name, home.Header().Get(name), want)
+		}
+	}
 	cookies := home.Result().Cookies()
 	if len(cookies) != 1 || cookies[0].Name != controlCookie || !cookies[0].HttpOnly || cookies[0].SameSite != http.SameSiteStrictMode {
 		t.Fatalf("control cookie = %#v", cookies)
@@ -42,10 +51,30 @@ func TestStudioSecurityBoundary(t *testing.T) {
 	if badHost.Code != http.StatusForbidden {
 		t.Fatalf("bad host status = %d", badHost.Code)
 	}
+	api := request(t, running.Handler, http.MethodGet, "/api/bootstrap", "127.0.0.1:4321", nil, "", "")
+	if api.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("API Cache-Control = %q", api.Header().Get("Cache-Control"))
+	}
 
 	missingToken := request(t, running.Handler, http.MethodPost, "/api/workspace/validate", "127.0.0.1:4321", nil, running.URL, "application/json")
 	if missingToken.Code != http.StatusUnauthorized {
 		t.Fatalf("missing token status = %d", missingToken.Code)
+	}
+	badContentType := request(t, running.Handler, http.MethodPost, "/api/workspace/validate", "127.0.0.1:4321", cookies[0], running.URL, "application/jsonp")
+	if badContentType.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("JSON-like content type status = %d", badContentType.Code)
+	}
+	wrongOrigin := request(t, running.Handler, http.MethodPost, "/api/workspace/validate", "127.0.0.1:4321", cookies[0], "http://attacker.invalid", "application/json")
+	if wrongOrigin.Code != http.StatusForbidden {
+		t.Fatalf("wrong origin status = %d", wrongOrigin.Code)
+	}
+	missingOrigin := request(t, running.Handler, http.MethodPost, "/api/workspace/validate", "127.0.0.1:4321", cookies[0], "", "application/json")
+	if missingOrigin.Code != http.StatusUnauthorized {
+		t.Fatalf("missing browser origin status = %d", missingOrigin.Code)
+	}
+	oversized := requestBody(t, running.Handler, http.MethodPost, "/api/workspace/validate", "127.0.0.1:4321", cookies[0], running.URL, "application/json", `{"padding":"`+strings.Repeat("x", maxRequestBody)+`"}`)
+	if oversized.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized request status = %d", oversized.Code)
 	}
 
 	allowed := request(t, running.Handler, http.MethodPost, "/api/workspace/validate", "127.0.0.1:4321", cookies[0], running.URL, "application/json")

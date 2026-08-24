@@ -29,6 +29,7 @@ func TestValidateLoopbackDestination(t *testing.T) {
 		{name: "remote hostname", destination: "https://example.com/webhooks/kick", wantError: true},
 		{name: "remote IP", destination: "http://192.0.2.1/webhooks/kick", wantError: true},
 		{name: "credentials", destination: "http://user@localhost/webhooks/kick", wantError: true},
+		{name: "fragment", destination: "http://localhost/webhooks/kick#ignored", wantError: true},
 		{name: "unsupported scheme", destination: "ftp://localhost/webhooks/kick", wantError: true},
 	}
 

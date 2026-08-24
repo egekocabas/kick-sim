@@ -142,6 +142,9 @@ func validateLoopbackDestination(destination string) error {
 	if parsed.User != nil || parsed.Hostname() == "" {
 		return errors.New("destination URL must contain a host and no user information")
 	}
+	if parsed.Fragment != "" {
+		return errors.New("destination URL must not contain a fragment")
+	}
 
 	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
 	if host == "localhost" {
