@@ -24,6 +24,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - name: Test release source
+        run: go test ./...
       - name: Build Studio assets
         run: npm install --global npm@11.17.0 && npm ci --prefix web && make web
       - uses: goreleaser/goreleaser-action@v6

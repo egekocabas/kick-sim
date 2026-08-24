@@ -98,6 +98,28 @@ jobs:
         run: go build -trimpath -tags studio_embed -o ./kick-sim ./cmd/kick-sim
       - name: Test embedded assets
         run: go test -tags studio_embed ./web ./internal/studio
+      - name: Smoke test embedded executable
+        shell: bash
+        run: |
+          ./kick-sim --help
+          ./kick-sim --output json version
+          ./kick-sim --workspace "$RUNNER_TEMP/kick-sim-workspace" init
+          ./kick-sim --workspace "$RUNNER_TEMP/kick-sim-workspace" workspace validate
+      - name: Install Playwright browser
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Test embedded Studio workflow
+        working-directory: web
+        run: npm run test:e2e
+      - name: Upload Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics
+          path: |
+            web/test-results
+            web/playwright-report
+          if-no-files-found: ignore
 
   release-snapshot:
     name: Release snapshot
@@ -122,3 +144,12 @@ jobs:
           distribution: goreleaser
           version: "~> v2"
           args: build --snapshot --clean
+      - name: Smoke test release binary
+        shell: bash
+        run: |
+          binary="$(find dist -type f -name kick-sim -path '*linux_amd64*' -print -quit)"
+          test -n "$binary"
+          "$binary" --help
+          "$binary" --output json version
+          "$binary" --workspace "$RUNNER_TEMP/release-workspace" init
+          "$binary" --workspace "$RUNNER_TEMP/release-workspace" workspace validate

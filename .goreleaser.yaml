@@ -47,4 +47,4 @@ snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
 release:
-  prerelease: true
+  prerelease: auto
