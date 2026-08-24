@@ -19,6 +19,13 @@ jobs:
         with:
           go-version: 1.26.5
           cache: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build Studio assets
+        run: npm install --global npm@11.17.0 && npm ci --prefix web && make web
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser

@@ -2,3 +2,5 @@
 /.kick-sim/
 /kick-sim
 /dist/
+/web/dist/
+/web/node_modules/

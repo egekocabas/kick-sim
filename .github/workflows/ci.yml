@@ -36,6 +36,37 @@ jobs:
         shell: bash
         run: ./kick-sim${{ runner.os == 'Windows' && '.exe' || '' }} --help
 
+  studio:
+    name: Studio contract and bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.26.5
+          cache: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Pin npm
+        run: npm install --global npm@11.17.0
+      - name: Install Studio dependencies
+        working-directory: web
+        run: npm ci
+      - name: Generate API artifacts
+        run: make generate
+      - name: Check generated API drift
+        run: git diff --exit-code -- web/openapi.json web/src/api/generated
+      - name: Test and build Studio
+        working-directory: web
+        run: npm test && npm run build
+      - name: Build embedded executable
+        run: go build -trimpath -tags studio_embed -o ./kick-sim ./cmd/kick-sim
+      - name: Test embedded assets
+        run: go test -tags studio_embed ./web ./internal/studio
+
   release-snapshot:
     name: Release snapshot
     runs-on: ubuntu-latest
@@ -47,6 +78,13 @@ jobs:
         with:
           go-version: 1.26.5
           cache: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build Studio assets
+        run: npm install --global npm@11.17.0 && npm ci --prefix web && make web
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
