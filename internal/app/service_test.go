@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -13,6 +14,67 @@ import (
 	"github.com/egekocabas/kick-sim/internal/signing"
 	"github.com/egekocabas/kick-sim/internal/workspace"
 )
+
+func TestReplaySurvivesRestartAndPreservesOrRegeneratesIdentity(t *testing.T) {
+	t.Parallel()
+	type received struct {
+		body    string
+		headers http.Header
+	}
+	requests := make(chan received, 3)
+	receiver := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		body, _ := io.ReadAll(request.Body)
+		requests <- received{body: string(body), headers: request.Header.Clone()}
+		writer.WriteHeader(http.StatusAccepted)
+	}))
+	defer receiver.Close()
+
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	if _, err := workspace.Init(root); err != nil {
+		t.Fatal(err)
+	}
+	service, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	generated, err := service.Generate(PayloadOptions{EventType: events.ChatMessageSentType, EventVersion: events.ChatMessageSentVersion}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalResult, err := service.Deliver(context.Background(), generated, "", receiver.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := <-requests
+
+	reopened, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exactResult, err := reopened.Replay(context.Background(), originalResult.AttemptID, "exact")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exact := <-requests
+	if exact.body != original.body || exact.headers.Get(delivery.HeaderMessageID) != original.headers.Get(delivery.HeaderMessageID) || exact.headers.Get(delivery.HeaderSignature) != original.headers.Get(delivery.HeaderSignature) {
+		t.Fatalf("exact replay changed signed request\noriginal: %#v\nexact: %#v", original, exact)
+	}
+	if exactResult.ReplayOfID != originalResult.AttemptID || exactResult.ReplayMode != "exact" {
+		t.Fatalf("exact replay provenance = %#v", exactResult)
+	}
+
+	regeneratedResult, err := reopened.Replay(context.Background(), originalResult.AttemptID, "regenerated")
+	if err != nil {
+		t.Fatal(err)
+	}
+	regenerated := <-requests
+	if regenerated.headers.Get(delivery.HeaderMessageID) == original.headers.Get(delivery.HeaderMessageID) || regenerated.headers.Get(delivery.HeaderSignature) == original.headers.Get(delivery.HeaderSignature) {
+		t.Fatal("regenerated replay reused signed identity")
+	}
+	if regeneratedResult.ReplayOfID != originalResult.AttemptID || regeneratedResult.ReplayMode != "regenerated" {
+		t.Fatalf("regenerated replay provenance = %#v", regeneratedResult)
+	}
+}
 
 func TestGenerateUsesOneLogicalTimestampAndExactSignedBody(t *testing.T) {
 	t.Parallel()
@@ -31,6 +93,8 @@ func TestGenerateUsesOneLogicalTimestampAndExactSignedBody(t *testing.T) {
 		"01ARZ3NDEKTSV4RRFFQ69G5FAV",
 		"01ARZ3NDEKTSV4RRFFQ69G5FAW",
 		"01ARZ3NDEKTSV4RRFFQ69G5FAX",
+		"01ARZ3NDEKTSV4RRFFQ69G5FAY",
+		"01ARZ3NDEKTSV4RRFFQ69G5FAZ",
 	}
 	service.NewID = func() string {
 		id := ids[0]

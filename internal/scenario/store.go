@@ -1,6 +1,8 @@
 package scenario
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -24,6 +26,7 @@ type Entry struct {
 	Path          string   `json:"path,omitempty"`
 	Scenario      Scenario `json:"scenario"`
 	Source        []byte   `json:"-"`
+	Revision      string   `json:"revision"`
 	SourceVersion int      `json:"sourceVersion"`
 }
 
@@ -65,6 +68,10 @@ func (store *Store) Get(id string) (Entry, error) {
 }
 
 func (store *Store) Copy(sourceID, targetID, createdWith string) (Entry, error) {
+	return store.SaveAsCopy(sourceID, targetID, nil, createdWith)
+}
+
+func (store *Store) SaveAsCopy(sourceID, targetID string, payload map[string]any, createdWith string) (Entry, error) {
 	if strings.HasPrefix(targetID, "builtin:") {
 		return Entry{}, errors.New("custom scenario ID cannot use the reserved builtin: prefix")
 	}
@@ -84,7 +91,15 @@ func (store *Store) Copy(sourceID, targetID, createdWith string) (Entry, error) 
 	}
 
 	value := source.Scenario
+	if payload != nil {
+		value.Request.Payload = events.DeepCopyMap(payload)
+		value.Request.Payload["message_id"] = "{{ ulid() }}"
+		value.Request.Payload["created_at"] = "{{ now() }}"
+	}
 	value.Metadata = Metadata{Source: sourceID, SourceVersion: source.SourceVersion, CreatedWith: createdWith}
+	if err := value.Validate(store.registry, store.configuration); err != nil {
+		return Entry{}, err
+	}
 	data, err := yaml.Marshal(value)
 	if err != nil {
 		return Entry{}, fmt.Errorf("marshal scenario copy: %w", err)
@@ -108,7 +123,7 @@ func (store *Store) Copy(sourceID, targetID, createdWith string) (Entry, error) 
 		_ = os.Remove(targetPath)
 		return Entry{}, fmt.Errorf("close scenario: %w", err)
 	}
-	return Entry{ID: targetID, Path: targetPath, Scenario: value, Source: data, SourceVersion: 1}, nil
+	return newEntry(targetID, false, targetPath, value, data, 1), nil
 }
 
 func (store *Store) Validate(entry Entry) error {
@@ -145,7 +160,7 @@ func (store *Store) builtIns() ([]Entry, error) {
 			return fmt.Errorf("parse built-in %s: %w", path, err)
 		}
 		id := "builtin:" + strings.TrimSuffix(strings.TrimPrefix(filepath.ToSlash(path), "scenarios/"), ".yaml")
-		entries = append(entries, Entry{ID: id, BuiltIn: true, Scenario: value, Source: data, SourceVersion: 1})
+		entries = append(entries, newEntry(id, true, "", value, data, 1))
 		return nil
 	})
 	return entries, err
@@ -195,10 +210,23 @@ func (store *Store) custom() ([]Entry, error) {
 		if err != nil {
 			return fmt.Errorf("parse scenario %s: %w", id, err)
 		}
-		entries = append(entries, Entry{ID: id, Path: path, Scenario: value, Source: data, SourceVersion: 1})
+		entries = append(entries, newEntry(id, false, path, value, data, 1))
 		return nil
 	})
 	return entries, err
+}
+
+func newEntry(id string, builtIn bool, path string, value Scenario, source []byte, sourceVersion int) Entry {
+	digest := sha256.Sum256(source)
+	return Entry{
+		ID:            id,
+		BuiltIn:       builtIn,
+		Path:          path,
+		Scenario:      value,
+		Source:        source,
+		Revision:      "sha256:" + hex.EncodeToString(digest[:]),
+		SourceVersion: sourceVersion,
+	}
 }
 
 func parse(data []byte) (Scenario, error) {

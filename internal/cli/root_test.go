@@ -37,13 +37,15 @@ func TestRequiredCommandSurface(t *testing.T) {
 		"keys init", "keys public", "keys info", "keys rotate",
 		"config show", "config validate",
 		"compatibility", "version",
+		"studio", "openapi",
+		"history list", "history show", "history replay", "history delete",
 	} {
 		found, _, err := command.Find(strings.Fields(path))
 		if err != nil || found.CommandPath() != "kick-sim "+path {
 			t.Errorf("command %q not found: %v", path, err)
 		}
 	}
-	for _, unavailable := range []string{"studio", "history", "suite", "load", "platform"} {
+	for _, unavailable := range []string{"suite", "load", "platform"} {
 		if found, _, err := command.Find([]string{unavailable}); err == nil && found.Name() == unavailable {
 			t.Errorf("unavailable command %q is visible", unavailable)
 		}

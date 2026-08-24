@@ -23,6 +23,7 @@ type Config struct {
 	Signing            Signing                `yaml:"signing" json:"signing"`
 	Defaults           Defaults               `yaml:"defaults" json:"defaults"`
 	Safety             Safety                 `yaml:"safety" json:"safety"`
+	History            History                `yaml:"history" json:"history"`
 }
 
 type Destination struct {
@@ -53,6 +54,14 @@ type User struct {
 
 type Safety struct {
 	AllowedDestinationClasses []string `yaml:"allowedDestinationClasses" json:"allowedDestinationClasses"`
+}
+
+type History struct {
+	Enabled              bool   `yaml:"enabled" json:"enabled"`
+	MaxAge               string `yaml:"maxAge" json:"maxAge"`
+	MaxFunctionalRuns    int    `yaml:"maxFunctionalRuns" json:"maxFunctionalRuns"`
+	StoreResponseBodies  bool   `yaml:"storeResponseBodies" json:"storeResponseBodies"`
+	MaxResponseBodyBytes int    `yaml:"maxResponseBodyBytes" json:"maxResponseBodyBytes"`
 }
 
 func Default() Config {
@@ -89,6 +98,13 @@ func Default() Config {
 			},
 		},
 		Safety: Safety{AllowedDestinationClasses: []string{"loopback"}},
+		History: History{
+			Enabled:              true,
+			MaxAge:               "720h",
+			MaxFunctionalRuns:    1000,
+			StoreResponseBodies:  true,
+			MaxResponseBodyBytes: 64 * 1024,
+		},
 	}
 }
 
@@ -97,7 +113,7 @@ func Load(path string) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("read configuration: %w", err)
 	}
-	var value Config
+	value := Config{History: Default().History}
 	if err := yaml.UnmarshalWithOptions(data, &value, yaml.Strict()); err != nil {
 		return Config{}, fmt.Errorf("parse configuration: %w", err)
 	}
@@ -154,6 +170,15 @@ func Validate(value Config) error {
 	}
 	if len(value.Safety.AllowedDestinationClasses) != 1 || value.Safety.AllowedDestinationClasses[0] != "loopback" {
 		problems = append(problems, errors.New("allowedDestinationClasses must contain only loopback"))
+	}
+	if _, err := time.ParseDuration(value.History.MaxAge); err != nil {
+		problems = append(problems, fmt.Errorf("history.maxAge is invalid: %w", err))
+	}
+	if value.History.MaxFunctionalRuns < 1 {
+		problems = append(problems, errors.New("history.maxFunctionalRuns must be positive"))
+	}
+	if value.History.MaxResponseBodyBytes < 0 || value.History.MaxResponseBodyBytes > 1024*1024 {
+		problems = append(problems, errors.New("history.maxResponseBodyBytes must be between 0 and 1048576"))
 	}
 	for name, user := range map[string]User{"broadcaster": value.Defaults.Broadcaster, "sender": value.Defaults.Sender} {
 		if user.UserID <= 0 || user.Username == "" || user.ChannelSlug == "" {
