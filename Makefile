@@ -8,7 +8,7 @@ web: generate
 	cd web && npm run build
 
 test: generate
-	test -z "$$(gofmt -l cmd internal web)"
+	test -z "$$(gofmt -l .)"
 	go test -race ./...
 	go vet ./...
 	cd web && npm run typecheck && npm test && npm run build

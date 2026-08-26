@@ -105,10 +105,10 @@ func New(service *app.Service, address string) (RunningServer, error) {
 	}
 	ip := net.ParseIP(host)
 	if ip == nil || !ip.IsLoopback() {
-		return RunningServer{}, errors.New("Studio listener must use a loopback IP address")
+		return RunningServer{}, errors.New("studio listener must use a loopback IP address")
 	}
 	if port == "" {
-		return RunningServer{}, errors.New("Studio listener requires a port")
+		return RunningServer{}, errors.New("studio listener requires a port")
 	}
 	token, err := newControlToken()
 	if err != nil {
@@ -140,7 +140,7 @@ func listen(address string) (net.Listener, error) {
 	}
 	ip := net.ParseIP(host)
 	if ip == nil || !ip.IsLoopback() {
-		return nil, errors.New("Studio address must use a loopback IP address")
+		return nil, errors.New("studio address must use a loopback IP address")
 	}
 	listener, err := net.Listen("tcp", address)
 	if err == nil {
