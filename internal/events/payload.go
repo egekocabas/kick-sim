@@ -11,11 +11,6 @@ import (
 	"github.com/egekocabas/kick-sim/internal/config"
 )
 
-func Compose(definition Definition, workspaceDefaults config.Defaults, scenarioPayload map[string]any) map[string]any {
-	payload, _ := ComposeWithActors(definition, workspaceDefaults, nil, nil, scenarioPayload)
-	return payload
-}
-
 var actorOwnedFields = []string{"user_id", "username", "channel_slug", "is_verified", "profile_picture"}
 
 func ComposeWithActors(definition Definition, workspaceDefaults config.Defaults, registry *actors.Registry, bindings map[string]string, scenarioPayload map[string]any) (map[string]any, error) {

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -134,9 +133,4 @@ func errorCode(err error) int {
 		}
 	}
 	return exitGeneral
-}
-
-func executeForTest(ctx context.Context, command *cobra.Command, args ...string) error {
-	command.SetArgs(args)
-	return command.ExecuteContext(ctx)
 }
