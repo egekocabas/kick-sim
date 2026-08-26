@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	listenAddress := flag.String("listen", "127.0.0.1:8080", "loopback listen address")
+	listenAddress := flag.String("listen", "127.0.0.1:3000", "loopback listen address")
 	publicKeyPath := flag.String("public-key", ".kick-sim/keys/public-key.pem", "simulator public key")
 	flag.Parse()
 

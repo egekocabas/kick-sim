@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+// goldenPrivateKey is intentionally public and exists only to keep the
+// signature compatibility vector deterministic. It must never be trusted.
 const goldenPrivateKey = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDv3D+Q/hZDLTZ1
 gUqKa0TNEbQLZhiDyyfmozZt8S+1r6RE4Q6K4aNAnSemS5W26yR6x7lAiTg80s6w

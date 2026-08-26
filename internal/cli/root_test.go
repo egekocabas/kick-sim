@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestInitCommandCreatesWorkspace(t *testing.T) {
@@ -110,4 +112,9 @@ func runCommand(args ...string) (string, string, error) {
 	command := NewRootCommand(&stdout, &stderr)
 	err := executeForTest(context.Background(), command, args...)
 	return stdout.String(), stderr.String(), err
+}
+
+func executeForTest(ctx context.Context, command *cobra.Command, args ...string) error {
+	command.SetArgs(args)
+	return command.ExecuteContext(ctx)
 }

@@ -32,7 +32,7 @@ func TestBundledPayloadSerializationContract(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		payload := Compose(definition, config.Default().Defaults, nil)
+		payload := composeForTest(t, definition, nil)
 		resolved := ResolveDynamic(payload, func() string { return "01ARZ3NDEKTSV4RRFFQ69G5FAV" }, time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)).(map[string]any)
 		first, err := Marshal(resolved, false)
 		if err != nil {
@@ -65,7 +65,7 @@ func TestDefaultPayloadResolvesAndValidates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payload := Compose(definition, config.Default().Defaults, map[string]any{"content": "hello"})
+	payload := composeForTest(t, definition, map[string]any{"content": "hello"})
 	resolved := ResolveDynamic(
 		payload,
 		func() string { return "01ARZ3NDEKTSV4RRFFQ69G5FAV" },
@@ -90,12 +90,21 @@ func TestAllBundledEventDefaultsResolveAndValidate(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		payload := Compose(definition, config.Default().Defaults, nil)
+		payload := composeForTest(t, definition, nil)
 		resolved := ResolveDynamic(payload, func() string { return "01ARZ3NDEKTSV4RRFFQ69G5FAV" }, time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC))
 		if err := registry.Validate(listed.Type, listed.Version, resolved); err != nil {
 			t.Fatalf("validate %s@%d: %v", listed.Type, listed.Version, err)
 		}
 	}
+}
+
+func composeForTest(t *testing.T, definition Definition, payload map[string]any) map[string]any {
+	t.Helper()
+	composed, err := ComposeWithActors(definition, config.Default().Defaults, nil, nil, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return composed
 }
 
 func TestActorProjectionProtectsOwnedFieldsAndPreservesChatContext(t *testing.T) {

@@ -2,7 +2,7 @@ module github.com/egekocabas/kick-sim
 
 go 1.26.0
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 require (
 	github.com/danielgtaylor/huma/v2 v2.39.1

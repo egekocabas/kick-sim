@@ -1,0 +1,9 @@
+title = "kick-sim Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Allow the intentionally public key used by the signature golden test"
+targetRules = ["private-key"]
+paths = ['''^internal/signing/golden_test\.go$''']
