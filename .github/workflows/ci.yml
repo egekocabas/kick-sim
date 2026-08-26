@@ -12,7 +12,6 @@ on:
       - ".github/PULL_REQUEST_TEMPLATE.md"
       - ".github/PULL_REQUEST_TEMPLATE/**"
       - ".github/dependabot.yml"
-      - ".github/workflows/**"
       - ".gitignore"
       - ".idea/**"
       - ".vscode/**"
@@ -31,7 +30,6 @@ on:
       - ".github/PULL_REQUEST_TEMPLATE.md"
       - ".github/PULL_REQUEST_TEMPLATE/**"
       - ".github/dependabot.yml"
-      - ".github/workflows/**"
       - ".gitignore"
       - ".idea/**"
       - ".vscode/**"
@@ -42,6 +40,43 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    name: Quality and security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.26.6
+          cache: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Verify Go module files
+        run: go mod verify && go mod tidy -diff
+      - name: Check Go formatting
+        run: test -z "$(gofmt -l .)"
+      - name: Run Staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...
+      - name: Check for unreachable Go code
+        run: go run golang.org/x/tools/cmd/deadcode@v0.49.0 ./...
+      - name: Check Go vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
+      - name: Pin npm
+        run: npm install --global npm@11.17.0
+      - name: Install Studio dependencies
+        working-directory: web
+        run: npm ci
+      - name: Audit Studio dependencies
+        working-directory: web
+        run: npm audit --audit-level=high
+      - name: Scan Git history for secrets
+        run: go run github.com/zricethezav/gitleaks/v8@v8.30.1 git --redact --no-banner --verbose .
+
   test:
     name: Test (${{ matrix.os }})
     strategy:
