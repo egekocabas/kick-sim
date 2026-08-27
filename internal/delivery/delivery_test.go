@@ -2,7 +2,13 @@ package delivery
 
 import (
 	"context"
+	"errors"
+	"net"
+	"net/http"
+	"net/netip"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/egekocabas/kick-sim/internal/loopback"
 )
@@ -13,6 +19,36 @@ func TestSendRejectsNonLoopbackDestination(t *testing.T) {
 	_, err := Send(context.Background(), nil, "https://example.com/webhooks/kick", Metadata{}, []byte(`{}`))
 	if err == nil {
 		t.Fatal("Send() accepted a non-loopback destination")
+	}
+}
+
+type fixedResolver []netip.Addr
+
+func (addresses fixedResolver) LookupNetIP(context.Context, string, string) ([]netip.Addr, error) {
+	return addresses, nil
+}
+
+type rejectingDialer struct{ called bool }
+
+func (dialer *rejectingDialer) DialContext(context.Context, string, string) (net.Conn, error) {
+	dialer.called = true
+	return nil, errors.New("unexpected dial")
+}
+
+func TestLoopbackClientRejectsMixedDNSAnswersBeforeDialing(t *testing.T) {
+	t.Parallel()
+	dialer := &rejectingDialer{}
+	client := newLoopbackClient(time.Second, fixedResolver{
+		netip.MustParseAddr("127.0.0.1"),
+		netip.MustParseAddr("192.0.2.1"),
+	}, dialer)
+	transport := client.Transport.(*http.Transport)
+	_, err := transport.DialContext(context.Background(), "tcp", "localhost:3000")
+	if err == nil || !strings.Contains(err.Error(), "outside loopback") {
+		t.Fatalf("DialContext() error = %v, dialed = %t", err, dialer.called)
+	}
+	if dialer.called {
+		t.Fatal("mixed DNS answer reached the network dialer")
 	}
 }
 

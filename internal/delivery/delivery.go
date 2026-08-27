@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"time"
 
 	"github.com/egekocabas/kick-sim/internal/loopback"
@@ -90,15 +91,26 @@ func Send(ctx context.Context, client *http.Client, destination string, metadata
 }
 
 func NewLoopbackClient(timeout time.Duration) *http.Client {
+	return newLoopbackClient(timeout, net.DefaultResolver, &net.Dialer{})
+}
+
+type addressResolver interface {
+	LookupNetIP(context.Context, string, string) ([]netip.Addr, error)
+}
+
+type contextDialer interface {
+	DialContext(context.Context, string, string) (net.Conn, error)
+}
+
+func newLoopbackClient(timeout time.Duration, resolver addressResolver, dialer contextDialer) *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
-	dialer := &net.Dialer{}
 	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
 		host, port, err := net.SplitHostPort(address)
 		if err != nil {
 			return nil, fmt.Errorf("parse destination address: %w", err)
 		}
-		addresses, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+		addresses, err := resolver.LookupNetIP(ctx, "ip", host)
 		if err != nil {
 			return nil, fmt.Errorf("resolve destination host: %w", err)
 		}

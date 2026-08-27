@@ -172,7 +172,14 @@ func InitKeys(root string) error {
 func RotateKeys(root string) error {
 	keyFiles.Lock()
 	defer keyFiles.Unlock()
-	paths := PathsFor(root)
+	configuration, err := config.Load(PathsFor(root).Config)
+	if err != nil {
+		return err
+	}
+	paths := Paths{
+		PrivateKey: config.ResolvePath(root, configuration.Signing.PrivateKey),
+		PublicKey:  config.ResolvePath(root, configuration.Signing.PublicKey),
+	}
 	if _, _, err := readKeyPair(paths.PrivateKey, paths.PublicKey); err != nil {
 		return fmt.Errorf("existing matching key pair is required for rotation: %w", err)
 	}
@@ -333,24 +340,25 @@ func osKeyFileOperations() keyFileOperations {
 }
 
 func replaceKeyPair(paths Paths, privatePEM, publicPEM []byte, operations keyFileOperations) error {
-	directory := filepath.Dir(paths.PrivateKey)
-	stagedPrivate, err := writeTemporary(directory, privatePEM, 0o600)
+	privateDirectory := filepath.Dir(paths.PrivateKey)
+	publicDirectory := filepath.Dir(paths.PublicKey)
+	stagedPrivate, err := writeTemporary(privateDirectory, privatePEM, 0o600)
 	if err != nil {
 		return err
 	}
 	defer os.Remove(stagedPrivate)
-	stagedPublic, err := writeTemporary(directory, publicPEM, 0o644)
+	stagedPublic, err := writeTemporary(publicDirectory, publicPEM, 0o644)
 	if err != nil {
 		return err
 	}
 	defer os.Remove(stagedPublic)
 
-	privateBackup, err := reserveBackupPath(directory, ".kick-sim-private-backup-*")
+	privateBackup, err := reserveBackupPath(privateDirectory, ".kick-sim-private-backup-*")
 	if err != nil {
 		return err
 	}
 	defer operations.remove(privateBackup)
-	publicBackup, err := reserveBackupPath(directory, ".kick-sim-public-backup-*")
+	publicBackup, err := reserveBackupPath(publicDirectory, ".kick-sim-public-backup-*")
 	if err != nil {
 		return err
 	}
@@ -372,7 +380,7 @@ func replaceKeyPair(paths Paths, privatePEM, publicPEM []byte, operations keyFil
 		if publicMoved {
 			problems = append(problems, operations.rename(publicBackup, paths.PublicKey))
 		}
-		problems = append(problems, syncDirectory(directory))
+		problems = append(problems, syncDirectories(privateDirectory, publicDirectory))
 		return errors.Join(problems...)
 	}
 	fail := func(action string, operationErr error) error {
@@ -398,7 +406,7 @@ func replaceKeyPair(paths Paths, privatePEM, publicPEM []byte, operations keyFil
 	if _, _, err := readKeyPair(paths.PrivateKey, paths.PublicKey); err != nil {
 		return fail("verify rotated key pair", err)
 	}
-	if err := syncDirectory(directory); err != nil {
+	if err := syncDirectories(privateDirectory, publicDirectory); err != nil {
 		return fail("sync rotated key pair", err)
 	}
 	if err := operations.remove(privateBackup); err != nil {
@@ -409,7 +417,7 @@ func replaceKeyPair(paths Paths, privatePEM, publicPEM []byte, operations keyFil
 		return fmt.Errorf("remove public key backup: %w", err)
 	}
 	publicMoved = false
-	return syncDirectory(directory)
+	return syncDirectories(privateDirectory, publicDirectory)
 }
 
 func reserveBackupPath(directory, pattern string) (string, error) {
@@ -477,6 +485,19 @@ func syncDirectory(path string) error {
 		return fmt.Errorf("sync key directory: %w", err)
 	}
 	return nil
+}
+
+func syncDirectories(paths ...string) error {
+	seen := map[string]struct{}{}
+	var problems []error
+	for _, path := range paths {
+		if _, duplicate := seen[path]; duplicate {
+			continue
+		}
+		seen[path] = struct{}{}
+		problems = append(problems, syncDirectory(path))
+	}
+	return errors.Join(problems...)
 }
 
 func writeExclusive(path string, data []byte, mode os.FileMode) error {
