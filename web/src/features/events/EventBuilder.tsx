@@ -69,7 +69,6 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
     setRawError("");
     setValidatingRaw(false);
     setResult(undefined);
-    setMessage("");
   }, [scenarioQuery.data]);
   useEffect(
     () => () => {
@@ -181,7 +180,14 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
       <section className="context-bar">
         <div>
           <small>Scenario</small>
-          <select aria-label="Scenario" value={selectedID} onChange={(event) => setSelectedID(event.target.value)}>
+          <select
+            aria-label="Scenario"
+            value={selectedID}
+            onChange={(event) => {
+              setMessage("");
+              setSelectedID(event.target.value);
+            }}
+          >
             {scenariosQuery.data?.map((item) => (
               <option value={item.id} key={item.id}>
                 {item.name}
