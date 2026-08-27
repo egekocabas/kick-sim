@@ -3,14 +3,12 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
+	"github.com/egekocabas/kick-sim/internal/loopback"
 	"github.com/goccy/go-yaml"
 )
 
@@ -108,6 +106,17 @@ func Default() Config {
 	}
 }
 
+// Clone returns a configuration whose mutable maps and slices do not alias value.
+func Clone(value Config) Config {
+	cloned := value
+	cloned.Destinations = make(map[string]Destination, len(value.Destinations))
+	for name, destination := range value.Destinations {
+		cloned.Destinations[name] = destination
+	}
+	cloned.Safety.AllowedDestinationClasses = append([]string(nil), value.Safety.AllowedDestinationClasses...)
+	return cloned
+}
+
 func Load(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -164,7 +173,7 @@ func Validate(value Config) error {
 		if _, err := time.ParseDuration(destination.Timeout); err != nil {
 			problems = append(problems, fmt.Errorf("destination %q has invalid timeout: %w", name, err))
 		}
-		if err := validateLoopbackURL(destination.URL); err != nil {
+		if err := loopback.ValidateURL(destination.URL); err != nil {
 			problems = append(problems, fmt.Errorf("destination %q: %w", name, err))
 		}
 	}
@@ -204,29 +213,4 @@ func (value Config) Destination(name string) (Destination, error) {
 		return Destination{}, fmt.Errorf("destination %q does not exist", name)
 	}
 	return destination, nil
-}
-
-func validateLoopbackURL(rawURL string) error {
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
-	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return errors.New("URL must use http or https")
-	}
-	if parsed.User != nil || parsed.Hostname() == "" {
-		return errors.New("URL must contain a host and no user information")
-	}
-	if parsed.Fragment != "" {
-		return errors.New("URL must not contain a fragment")
-	}
-	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
-	if host == "localhost" {
-		return nil
-	}
-	ip := net.ParseIP(host)
-	if ip == nil || !ip.IsLoopback() {
-		return errors.New("URL must use a loopback host")
-	}
-	return nil
 }

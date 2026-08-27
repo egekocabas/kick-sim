@@ -29,7 +29,7 @@ func newScenarioListCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			store := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors)
+			store := scenario.NewStore(service.WorkspaceRoot(), service.EventRegistry(), service.Configuration(), service.ActorRegistry())
 			entries, err := store.List()
 			if err != nil {
 				return scenarioError(err)
@@ -63,7 +63,7 @@ func newScenarioShowCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			entry, err := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors).Get(args[0])
+			entry, err := scenario.NewStore(service.WorkspaceRoot(), service.EventRegistry(), service.Configuration(), service.ActorRegistry()).Get(args[0])
 			if err != nil {
 				return scenarioError(err)
 			}
@@ -86,7 +86,7 @@ func newScenarioCopyCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			entry, err := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors).Copy(args[0], args[1], "kick-sim@"+version.Version)
+			entry, err := scenario.NewStore(service.WorkspaceRoot(), service.EventRegistry(), service.Configuration(), service.ActorRegistry()).Copy(args[0], args[1], "kick-sim@"+version.Version)
 			if err != nil {
 				return scenarioError(err)
 			}
@@ -109,7 +109,7 @@ func newScenarioValidateCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			store := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors)
+			store := scenario.NewStore(service.WorkspaceRoot(), service.EventRegistry(), service.Configuration(), service.ActorRegistry())
 			entry, err := store.Get(args[0])
 			if err != nil {
 				return scenarioError(err)
@@ -138,7 +138,7 @@ func newScenarioRunCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			store := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors)
+			store := scenario.NewStore(service.WorkspaceRoot(), service.EventRegistry(), service.Configuration(), service.ActorRegistry())
 			entry, err := store.Get(args[0])
 			if err != nil {
 				return scenarioError(err)

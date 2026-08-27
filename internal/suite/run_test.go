@@ -24,7 +24,7 @@ func TestDeliverySuiteVerifiesDuplicateResponseBehavior(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	scenarios := scenario.NewStore(root, service.Events, service.Config, service.Actors)
+	scenarios := scenario.NewStore(root, service.EventRegistry(), service.Configuration(), service.ActorRegistry())
 	store := NewStore(root, scenarios)
 	entry, err := store.Get("builtin:delivery")
 	if err != nil {

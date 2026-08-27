@@ -156,6 +156,8 @@ func listen(address string) (net.Listener, error) {
 	return nil, fmt.Errorf("listen for Studio: %w", err)
 }
 
+// The control token makes loopback browser requests intentional: an unrelated
+// page cannot mutate the workspace merely because it can reach localhost.
 func securityMiddleware(origin, allowedHost, token string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'")

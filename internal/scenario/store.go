@@ -1,26 +1,19 @@
+// Package scenario loads, validates, and safely edits workspace scenario sources.
 package scenario
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 
-	"github.com/egekocabas/kick-sim/assets"
 	"github.com/egekocabas/kick-sim/internal/actors"
 	"github.com/egekocabas/kick-sim/internal/config"
 	"github.com/egekocabas/kick-sim/internal/events"
 	"github.com/goccy/go-yaml"
 )
-
-var scenarioSegment = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 type Entry struct {
 	ID               string   `json:"id"`
@@ -66,7 +59,7 @@ func NewStore(workspaceRoot string, registry *events.Registry, configuration con
 	if len(actorRegistries) > 0 && actorRegistries[0] != nil {
 		actorRegistry = actorRegistries[0]
 	}
-	return &Store{workspaceRoot: workspaceRoot, registry: registry, configuration: configuration, actors: actorRegistry}
+	return &Store{workspaceRoot: workspaceRoot, registry: registry, configuration: config.Clone(configuration), actors: actorRegistry}
 }
 
 func (store *Store) List() ([]Entry, error) {
@@ -84,16 +77,10 @@ func (store *Store) List() ([]Entry, error) {
 }
 
 func (store *Store) Get(id string) (Entry, error) {
-	entries, err := store.List()
-	if err != nil {
-		return Entry{}, err
+	if strings.HasPrefix(id, "builtin:") {
+		return store.getBuiltIn(strings.TrimPrefix(id, "builtin:"))
 	}
-	for _, entry := range entries {
-		if entry.ID == id {
-			return entry, nil
-		}
-	}
-	return Entry{}, fmt.Errorf("scenario %q was not found", id)
+	return store.getCustom(id)
 }
 
 func (store *Store) Copy(sourceID, targetID, createdWith string) (Entry, error) {
@@ -207,307 +194,4 @@ func (store *Store) Validate(entry Entry) error {
 		return entry.validationError
 	}
 	return entry.Scenario.Validate(store.registry, store.configuration, store.actors)
-}
-
-func ValidateID(id string) error {
-	if id == "" || strings.Contains(id, "\\") || filepath.IsAbs(id) || filepath.VolumeName(id) != "" {
-		return fmt.Errorf("invalid scenario ID %q", id)
-	}
-	for _, segment := range strings.Split(id, "/") {
-		if !scenarioSegment.MatchString(segment) {
-			return fmt.Errorf("invalid scenario ID segment %q", segment)
-		}
-	}
-	return nil
-}
-
-func (store *Store) builtIns() ([]Entry, error) {
-	var entries []Entry
-	err := fs.WalkDir(assets.Files, "scenarios", func(path string, item fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if item.IsDir() || filepath.Ext(path) != ".yaml" {
-			return nil
-		}
-		data, err := assets.Files.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		value, err := parse(data)
-		if err != nil {
-			return fmt.Errorf("parse built-in %s: %w", path, err)
-		}
-		id := "builtin:" + strings.TrimSuffix(strings.TrimPrefix(filepath.ToSlash(path), "scenarios/"), ".yaml")
-		entries = append(entries, newEntry(id, true, "", value, data, 1))
-		return nil
-	})
-	return entries, err
-}
-
-func (store *Store) custom() ([]Entry, error) {
-	root := filepath.Join(store.workspaceRoot, "scenarios")
-	if _, err := os.Stat(root); errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("inspect scenarios directory: %w", err)
-	}
-
-	seen := map[string]string{}
-	var entries []Entry
-	err := filepath.WalkDir(root, func(path string, item fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if item.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("scenario paths may not contain symlinks: %s", path)
-		}
-		if item.IsDir() {
-			return nil
-		}
-		extension := strings.ToLower(filepath.Ext(path))
-		if extension != ".yaml" && extension != ".yml" && extension != ".json" {
-			return nil
-		}
-		relative, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		id := strings.TrimSuffix(filepath.ToSlash(relative), extension)
-		if err := ValidateID(id); err != nil {
-			return err
-		}
-		if prior, duplicate := seen[id]; duplicate {
-			return fmt.Errorf("scenario ID %q is defined by both %s and %s", id, prior, path)
-		}
-		seen[id] = path
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		value, validationErr := store.parseAndValidate(data)
-		entry := newEntry(id, false, path, value, data, 1)
-		if validationErr != nil {
-			entry.validationError = validationErr
-			entry.ValidationErrors = errorMessages(validationErr)
-		}
-		entries = append(entries, entry)
-		return nil
-	})
-	return entries, err
-}
-
-func newEntry(id string, builtIn bool, path string, value Scenario, source []byte, sourceVersion int) Entry {
-	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
-	if format == "" || format == "yml" {
-		format = "yaml"
-	}
-	return Entry{
-		ID:            id,
-		BuiltIn:       builtIn,
-		Path:          path,
-		Scenario:      value,
-		Source:        append([]byte(nil), source...),
-		SourceFormat:  format,
-		Revision:      revision(source),
-		SourceVersion: sourceVersion,
-	}
-}
-
-func (store *Store) parseAndValidate(data []byte) (Scenario, error) {
-	value, err := parse(data)
-	if err != nil {
-		return Scenario{}, &SourceValidationError{Problems: []string{err.Error()}}
-	}
-	if err := value.Validate(store.registry, store.configuration, store.actors); err != nil {
-		return value, &SourceValidationError{Problems: errorMessages(err)}
-	}
-	return value, nil
-}
-
-func errorMessages(err error) []string {
-	if problem, ok := err.(*SourceValidationError); ok {
-		return append([]string(nil), problem.Problems...)
-	}
-	type joined interface{ Unwrap() []error }
-	if group, ok := err.(joined); ok {
-		var messages []string
-		for _, child := range group.Unwrap() {
-			messages = append(messages, errorMessages(child)...)
-		}
-		return messages
-	}
-	return []string{err.Error()}
-}
-
-func revision(data []byte) string {
-	digest := sha256.Sum256(data)
-	return "sha256:" + hex.EncodeToString(digest[:])
-}
-
-func parse(data []byte) (Scenario, error) {
-	var value Scenario
-	if err := yaml.UnmarshalWithOptions(data, &value, yaml.Strict()); err != nil {
-		return Scenario{}, err
-	}
-	if value.Request.Payload == nil {
-		value.Request.Payload = map[string]any{}
-	}
-	for index := range value.Steps {
-		if value.Steps[index].Payload == nil {
-			value.Steps[index].Payload = map[string]any{}
-		}
-	}
-	return value, nil
-}
-
-func ensureNoSymlinkComponents(root, target string) error {
-	rootInfo, err := os.Lstat(root)
-	if err != nil {
-		return fmt.Errorf("inspect scenarios root: %w", err)
-	}
-	if rootInfo.Mode()&os.ModeSymlink != 0 {
-		return errors.New("scenarios directory may not be a symlink")
-	}
-	relative, err := filepath.Rel(root, filepath.Dir(target))
-	if err != nil {
-		return err
-	}
-	current := root
-	for _, segment := range strings.Split(relative, string(filepath.Separator)) {
-		if segment == "." || segment == "" {
-			continue
-		}
-		current = filepath.Join(current, segment)
-		info, err := os.Lstat(current)
-		if errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("scenario path may not contain symlink %s", current)
-		}
-	}
-	return nil
-}
-
-func (store *Store) customPath(id, extension string) (string, error) {
-	if err := ValidateID(id); err != nil {
-		return "", err
-	}
-	root := filepath.Join(store.workspaceRoot, "scenarios")
-	path := filepath.Join(root, filepath.FromSlash(id)+extension)
-	relative, err := filepath.Rel(root, path)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return "", errors.New("scenario path escapes the workspace")
-	}
-	return path, nil
-}
-
-func rejectScenarioCollision(base string) error {
-	for _, extension := range []string{".yaml", ".yml", ".json"} {
-		if _, err := os.Lstat(base + extension); err == nil {
-			return fmt.Errorf("scenario already exists: %s", base+extension)
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-	}
-	return nil
-}
-
-func (store *Store) writeNew(path string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create scenario directory: %w", err)
-	}
-	if err := ensureNoSymlinkComponents(filepath.Join(store.workspaceRoot, "scenarios"), path); err != nil {
-		return err
-	}
-	return writeAtomicNew(path, data, 0o644)
-}
-
-func writeAtomicNew(path string, data []byte, mode os.FileMode) error {
-	temporaryPath, err := writeTemporary(filepath.Dir(path), data, mode)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(temporaryPath)
-	if err := os.Link(temporaryPath, path); err != nil {
-		return fmt.Errorf("create scenario: %w", err)
-	}
-	return syncDirectory(filepath.Dir(path))
-}
-
-func writeAtomicReplace(path string, data []byte, mode os.FileMode, expectedRevision string) error {
-	current, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("read current scenario: %w", err)
-	}
-	actualRevision := revision(current)
-	if actualRevision != expectedRevision {
-		return &RevisionConflictError{Expected: expectedRevision, Actual: actualRevision}
-	}
-	temporaryPath, err := writeTemporary(filepath.Dir(path), data, mode)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(temporaryPath)
-
-	current, err = os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("re-read current scenario: %w", err)
-	}
-	actualRevision = revision(current)
-	if actualRevision != expectedRevision {
-		return &RevisionConflictError{Expected: expectedRevision, Actual: actualRevision}
-	}
-	if err := os.Rename(temporaryPath, path); err != nil {
-		return fmt.Errorf("replace scenario: %w", err)
-	}
-	return syncDirectory(filepath.Dir(path))
-}
-
-func writeTemporary(directory string, data []byte, mode os.FileMode) (string, error) {
-	file, err := os.CreateTemp(directory, ".kick-sim-scenario-*")
-	if err != nil {
-		return "", fmt.Errorf("create temporary scenario: %w", err)
-	}
-	path := file.Name()
-	failed := true
-	defer func() {
-		if failed {
-			_ = file.Close()
-			_ = os.Remove(path)
-		}
-	}()
-	if err := file.Chmod(mode); err != nil {
-		return "", fmt.Errorf("set temporary scenario permissions: %w", err)
-	}
-	if _, err := file.Write(data); err != nil {
-		return "", fmt.Errorf("write temporary scenario: %w", err)
-	}
-	if err := file.Sync(); err != nil {
-		return "", fmt.Errorf("sync temporary scenario: %w", err)
-	}
-	if err := file.Close(); err != nil {
-		return "", fmt.Errorf("close temporary scenario: %w", err)
-	}
-	failed = false
-	return path, nil
-}
-
-func syncDirectory(path string) error {
-	if runtime.GOOS == "windows" {
-		return nil
-	}
-	directory, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("open scenario directory: %w", err)
-	}
-	defer directory.Close()
-	if err := directory.Sync(); err != nil {
-		return fmt.Errorf("sync scenario directory: %w", err)
-	}
-	return nil
 }

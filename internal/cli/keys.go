@@ -71,7 +71,7 @@ func newKeysPublicCommand(environment *environment) *cobra.Command {
 				_, err = fmt.Fprintln(environment.stdout, path)
 				return err
 			}
-			data, err := os.ReadFile(path)
+			data, err := workspace.ReadPublicKeyPEM(path)
 			if err != nil {
 				return workspaceError(fmt.Errorf("read public key: %w", err))
 			}
@@ -102,7 +102,7 @@ func newKeysInfoCommand(environment *environment) *cobra.Command {
 			}
 			publicPath := config.ResolvePath(root, configuration.Signing.PublicKey)
 			privatePath := config.ResolvePath(root, configuration.Signing.PrivateKey)
-			publicKey, err := signing.ReadPublicKey(publicPath)
+			publicKey, matchingPrivateKey, err := workspace.InspectKeyPair(privatePath, publicPath)
 			if err != nil {
 				return workspaceError(err)
 			}
@@ -114,8 +114,6 @@ func newKeysInfoCommand(environment *environment) *cobra.Command {
 			if err != nil {
 				return workspaceError(err)
 			}
-			privateKey, privateError := signing.ReadPrivateKey(privatePath)
-			matchingPrivateKey := privateError == nil && privateKey.PublicKey.N.Cmp(publicKey.N) == 0
 			result := map[string]any{
 				"path":               publicPath,
 				"algorithm":          "RSA",

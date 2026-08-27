@@ -9,11 +9,13 @@
     "npm": "11.17.0"
   },
   "scripts": {
+    "check": "biome ci .",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "format": "biome check --write .",
     "api:generate": "orval --config ./orval.config.ts && node ./scripts/normalize-generated.mjs"
   },
   "dependencies": {
@@ -22,6 +24,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.10",
     "@playwright/test": "1.62.1",
     "@testing-library/react": "16.3.2",
     "@types/react": "19.2.18",

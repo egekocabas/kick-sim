@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -88,7 +89,6 @@ func TestGenerateUsesOneLogicalTimestampAndExactSignedBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixedTime := time.Date(2026, time.August, 24, 10, 15, 30, 123000000, time.UTC)
-	service.Now = func() time.Time { return fixedTime }
 	ids := []string{
 		"01ARZ3NDEKTSV4RRFFQ69G5FAV",
 		"01ARZ3NDEKTSV4RRFFQ69G5FAW",
@@ -96,10 +96,13 @@ func TestGenerateUsesOneLogicalTimestampAndExactSignedBody(t *testing.T) {
 		"01ARZ3NDEKTSV4RRFFQ69G5FAY",
 		"01ARZ3NDEKTSV4RRFFQ69G5FAZ",
 	}
-	service.NewID = func() string {
-		id := ids[0]
-		ids = ids[1:]
-		return id
+	service.dependencies = dependencies{
+		now: func() time.Time { return fixedTime },
+		newID: func() string {
+			id := ids[0]
+			ids = ids[1:]
+			return id
+		},
 	}
 
 	generated, err := service.Generate(PayloadOptions{
@@ -187,6 +190,61 @@ func TestGenerateRejectsConflictingOverrides(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("GeneratePayload() accepted conflicting overrides")
+	}
+}
+
+func TestConfigurationReturnsDefensiveCopies(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	if _, err := workspace.Init(root); err != nil {
+		t.Fatal(err)
+	}
+	service, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configuration := service.Configuration()
+	delete(configuration.Destinations, configuration.DefaultDestination)
+	configuration.Safety.AllowedDestinationClasses[0] = "remote"
+	pristine := service.Configuration()
+	if _, ok := pristine.Destinations[pristine.DefaultDestination]; !ok {
+		t.Fatal("mutating Configuration() changed the service destination map")
+	}
+	if pristine.Safety.AllowedDestinationClasses[0] != "loopback" {
+		t.Fatal("mutating Configuration() changed the service safety slice")
+	}
+}
+
+func TestGenerateAppliesMapOverridesDeterministically(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	if _, err := workspace.Init(root); err != nil {
+		t.Fatal(err)
+	}
+	service, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.GeneratePayload(PayloadOptions{
+		EventType: events.ChatMessageSentType, EventVersion: events.ChatMessageSentVersion,
+		JSONValues: map[string]any{"/payload/z-missing": true, "/payload/a-missing": true},
+	})
+	if err == nil || !strings.Contains(err.Error(), "/payload/a-missing") {
+		t.Fatalf("deterministic override error = %v", err)
+	}
+}
+
+func TestApplyDeliveryFailureDoesNotMutateInput(t *testing.T) {
+	t.Parallel()
+	service := &Service{}
+	original := Generated{Headers: map[string]string{delivery.HeaderSignature: "valid"}, Payload: map[string]any{"content": "hello"}, RawBody: `{}`}
+	changed, err := service.ApplyDeliveryFailure(original, "invalid-signature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed.Payload["content"] = "changed"
+	if original.Headers[delivery.HeaderSignature] != "valid" || original.Payload["content"] != "hello" {
+		t.Fatal("ApplyDeliveryFailure() mutated its input")
 	}
 }
 

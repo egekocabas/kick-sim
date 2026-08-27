@@ -156,6 +156,20 @@ func TestStorePersistsActivityAndAttemptAcrossRestart(t *testing.T) {
 	}
 }
 
+func TestStoreRejectsMissingRequiredTimestamps(t *testing.T) {
+	t.Parallel()
+	store, err := Open(filepath.Join(t.TempDir(), "kick-sim.db"), config.Default().History)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	record := fixtureRecord(time.Now().UTC())
+	record.Attempt.TransportStartedAt = time.Time{}
+	if err := store.Save(context.Background(), record); err == nil || !strings.Contains(err.Error(), "transport_started_at") {
+		t.Fatalf("Save() error = %v", err)
+	}
+}
+
 func TestStorePrunesFunctionalRunsByCount(t *testing.T) {
 	t.Parallel()
 

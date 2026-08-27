@@ -123,10 +123,12 @@ examples/receiver/  minimal signature-verifying webhook receiver
 ```
 
 The filesystem remains the source of truth for authored data. Generated OpenAPI artifacts are committed and checked for drift in CI.
+See [Architecture](docs/architecture.md) for dependency direction, orchestration boundaries, and the safety-critical storage and delivery flows.
 
 ## Contracts and documentation
 
 - [CLI contract](docs/cli-contract.md)
+- [Architecture](docs/architecture.md)
 - [Workspace and authored-format contract](docs/workspace-contract.md)
 - [Compatibility and provenance](docs/compatibility.md)
 - [Security model](SECURITY.md)

@@ -63,7 +63,18 @@ process.on("exit", () => {
   }
 });
 
-start("go", ["run", "./examples/receiver", "-listen", receiverAddress, "-public-key", path.join(workspace, "keys", "public-key.pem")], repositoryRoot);
+start(
+  "go",
+  [
+    "run",
+    "./examples/receiver",
+    "-listen",
+    receiverAddress,
+    "-public-key",
+    path.join(workspace, "keys", "public-key.pem"),
+  ],
+  repositoryRoot,
+);
 start(binary, ["--workspace", workspace, "studio", "--no-open", "--address", studioAddress], repositoryRoot);
 
 await new Promise(() => {});

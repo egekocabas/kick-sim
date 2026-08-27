@@ -25,7 +25,7 @@ func TestBuiltInsValidateAndCopyToCustomScenario(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store := NewStore(root, service.Events, service.Config)
+	store := NewStore(root, service.EventRegistry(), service.Configuration())
 	entries, err := store.List()
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +109,7 @@ func TestCopyRejectsSymlinkEscape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store := NewStore(root, service.Events, service.Config)
+	store := NewStore(root, service.EventRegistry(), service.Configuration())
 	if _, err := store.Copy("builtin:chat/basic-message", "escape/copied", "kick-sim@test"); err == nil {
 		t.Fatal("Copy() followed a symlink outside the scenarios directory")
 	}
@@ -268,6 +268,25 @@ func TestSaveSourceSupportsJSONScenarioFiles(t *testing.T) {
 	}
 }
 
+func TestGetRejectsDuplicateCustomSourceExtensions(t *testing.T) {
+	t.Parallel()
+	store := newTestStore(t)
+	source, err := store.Get("builtin:chat/basic-message")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := filepath.Join(store.workspaceRoot, "scenarios", "duplicate")
+	if err := os.WriteFile(base+".yaml", source.Source, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(base+".json", source.Source, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Get("duplicate"); err == nil || !strings.Contains(err.Error(), "defined by both") {
+		t.Fatalf("Get() error = %v", err)
+	}
+}
+
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), ".kick-sim")
@@ -278,5 +297,5 @@ func newTestStore(t *testing.T) *Store {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewStore(root, service.Events, service.Config)
+	return NewStore(root, service.EventRegistry(), service.Configuration())
 }

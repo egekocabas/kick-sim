@@ -50,16 +50,70 @@ func (store *Store) List() ([]Entry, error) {
 }
 
 func (store *Store) Get(id string) (Entry, error) {
-	entries, err := store.List()
-	if err != nil {
+	if strings.HasPrefix(id, "builtin:") {
+		return store.getBuiltIn(strings.TrimPrefix(id, "builtin:"))
+	}
+	return store.getCustom(id)
+}
+
+func (store *Store) getBuiltIn(id string) (Entry, error) {
+	if err := validateID(id); err != nil {
 		return Entry{}, err
 	}
-	for _, entry := range entries {
-		if entry.ID == id {
-			return entry, nil
-		}
+	path := "suites/" + id + ".yaml"
+	data, err := assets.Files.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return Entry{}, fmt.Errorf("suite %q was not found", "builtin:"+id)
 	}
-	return Entry{}, fmt.Errorf("suite %q was not found", id)
+	if err != nil {
+		return Entry{}, fmt.Errorf("read built-in suite: %w", err)
+	}
+	value, err := parse(data)
+	if err != nil {
+		return Entry{}, fmt.Errorf("parse built-in %s: %w", path, err)
+	}
+	return Entry{ID: "builtin:" + id, BuiltIn: true, Suite: value, Source: data}, nil
+}
+
+func (store *Store) getCustom(id string) (Entry, error) {
+	if err := validateID(id); err != nil {
+		return Entry{}, err
+	}
+	root := workspace.PathsFor(store.workspaceRoot).Suites
+	base := filepath.Join(root, filepath.FromSlash(id))
+	var matches []string
+	for _, extension := range []string{".yaml", ".yml", ".json"} {
+		path := base + extension
+		info, err := os.Lstat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return Entry{}, fmt.Errorf("inspect suite: %w", err)
+		}
+		if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+			return Entry{}, errors.New("suite source must be a regular file")
+		}
+		matches = append(matches, path)
+	}
+	if len(matches) == 0 {
+		return Entry{}, fmt.Errorf("suite %q was not found", id)
+	}
+	if len(matches) > 1 {
+		return Entry{}, fmt.Errorf("suite ID %q is defined by both %s and %s", id, matches[0], matches[1])
+	}
+	if err := ensureNoSymlinkComponents(root, matches[0]); err != nil {
+		return Entry{}, err
+	}
+	data, err := os.ReadFile(matches[0])
+	if err != nil {
+		return Entry{}, fmt.Errorf("read suite: %w", err)
+	}
+	value, err := parse(data)
+	if err != nil {
+		return Entry{}, fmt.Errorf("parse suite %s: %w", matches[0], err)
+	}
+	return Entry{ID: id, Path: matches[0], Suite: value, Source: data}, nil
 }
 
 func (store *Store) Validate(entry Entry) error { return entry.Suite.Validate(store.scenarios) }
@@ -95,6 +149,7 @@ func (store *Store) custom() ([]Entry, error) {
 	} else if err != nil {
 		return nil, err
 	}
+	seen := map[string]string{}
 	var entries []Entry
 	err := filepath.WalkDir(root, func(path string, item fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -118,6 +173,10 @@ func (store *Store) custom() ([]Entry, error) {
 		if err := validateID(id); err != nil {
 			return err
 		}
+		if prior, duplicate := seen[id]; duplicate {
+			return fmt.Errorf("suite ID %q is defined by both %s and %s", id, prior, path)
+		}
+		seen[id] = path
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
@@ -147,6 +206,35 @@ func validateID(id string) error {
 	for _, segment := range strings.Split(id, "/") {
 		if !idSegment.MatchString(segment) {
 			return fmt.Errorf("invalid suite ID segment %q", segment)
+		}
+	}
+	return nil
+}
+
+func ensureNoSymlinkComponents(root, target string) error {
+	rootInfo, err := os.Lstat(root)
+	if err != nil {
+		return fmt.Errorf("inspect suites root: %w", err)
+	}
+	if rootInfo.Mode()&os.ModeSymlink != 0 {
+		return errors.New("suites directory may not be a symlink")
+	}
+	relative, err := filepath.Rel(root, filepath.Dir(target))
+	if err != nil {
+		return err
+	}
+	current := root
+	for _, segment := range strings.Split(relative, string(filepath.Separator)) {
+		if segment == "." || segment == "" {
+			continue
+		}
+		current = filepath.Join(current, segment)
+		info, err := os.Lstat(current)
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("suite path may not contain symlink %s", current)
 		}
 	}
 	return nil

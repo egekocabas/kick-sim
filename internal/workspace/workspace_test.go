@@ -2,11 +2,13 @@ package workspace
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
+	"github.com/egekocabas/kick-sim/internal/config"
 	"github.com/egekocabas/kick-sim/internal/signing"
 )
 
@@ -147,6 +149,113 @@ func TestRotateKeysReplacesMatchingPair(t *testing.T) {
 	}
 	if bytes.Equal(before, after) {
 		t.Fatal("RotateKeys() did not replace the public key")
+	}
+	if err := Validate(root); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReplaceKeyPairRollsBackAfterInstallFailure(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	paths, err := Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalPrivate, err := os.ReadFile(paths.PrivateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalPublic, err := os.ReadFile(paths.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := signing.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	privatePEM, err := signing.MarshalPrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicPEM, err := signing.MarshalPublicKey(&key.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	renames := 0
+	operations := osKeyFileOperations()
+	operations.rename = func(source, target string) error {
+		renames++
+		if renames == 4 {
+			return errors.New("injected public install failure")
+		}
+		return os.Rename(source, target)
+	}
+	if err := replaceKeyPair(paths, privatePEM, publicPEM, operations); err == nil {
+		t.Fatal("replaceKeyPair() succeeded after an injected failure")
+	}
+	afterPrivate, err := os.ReadFile(paths.PrivateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterPublic, err := os.ReadFile(paths.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(afterPrivate, originalPrivate) || !bytes.Equal(afterPublic, originalPublic) {
+		t.Fatal("replaceKeyPair() did not restore the original pair")
+	}
+	if err := Validate(root); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRotateKeysUsesConfiguredPaths(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	paths, err := Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configuration, err := config.Load(paths.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configuration.Signing.PrivateKey = "./private/simulator.pem"
+	configuration.Signing.PublicKey = "./public/simulator.pem"
+	privatePath := config.ResolvePath(root, configuration.Signing.PrivateKey)
+	publicPath := config.ResolvePath(root, configuration.Signing.PublicKey)
+	if err := os.MkdirAll(filepath.Dir(privatePath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(publicPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(paths.PrivateKey, privatePath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(paths.PublicKey, publicPath); err != nil {
+		t.Fatal(err)
+	}
+	data, err := config.Marshal(configuration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(paths.Config, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(publicPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := RotateKeys(root); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(publicPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(before, after) {
+		t.Fatal("RotateKeys() did not replace the configured public key")
 	}
 	if err := Validate(root); err != nil {
 		t.Fatal(err)

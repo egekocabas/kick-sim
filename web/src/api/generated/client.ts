@@ -179,7 +179,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listActors>>> = ({ signal }) => listActors({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listActors>>> = ({ signal }) => listActors({ ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -306,7 +306,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBootstrap>>> = ({ signal }) => getBootstrap({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBootstrap>>> = ({ signal }) => getBootstrap({ ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -433,7 +433,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCapabilities>>> = ({ signal }) => getCapabilities({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCapabilities>>> = ({ signal }) => getCapabilities({ ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -560,7 +560,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeliveryAttempt>>> = ({ signal }) => getDeliveryAttempt(id, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeliveryAttempt>>> = ({ signal }) => getDeliveryAttempt(id, { ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -792,7 +792,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEvents>>> = ({ signal }) => listEvents({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEvents>>> = ({ signal }) => listEvents({ ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -1235,7 +1235,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEvent>>> = ({ signal }) => getEvent(type,version, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEvent>>> = ({ signal }) => getEvent(type,version, { ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -1366,7 +1366,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSimulatorKeyInfo>>> = ({ signal }) => getSimulatorKeyInfo({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSimulatorKeyInfo>>> = ({ signal }) => getSimulatorKeyInfo({ ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -1493,7 +1493,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSimulatorPublicKey>>> = ({ signal }) => getSimulatorPublicKey({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSimulatorPublicKey>>> = ({ signal }) => getSimulatorPublicKey({ ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -1725,7 +1725,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRuns>>> = ({ signal }) => listRuns(params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRuns>>> = ({ signal }) => listRuns(params, { ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -1957,7 +1957,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getScenario>>> = ({ signal }) => getScenario(params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getScenario>>> = ({ signal }) => getScenario(params, { ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -2500,7 +2500,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listScenarios>>> = ({ signal }) => listScenarios({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listScenarios>>> = ({ signal }) => listScenarios({ ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -2634,7 +2634,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuite>>> = ({ signal }) => getSuite(params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuite>>> = ({ signal }) => getSuite(params, { ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -2865,7 +2865,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSuites>>> = ({ signal }) => listSuites({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSuites>>> = ({ signal }) => listSuites({ ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 
@@ -3096,7 +3096,7 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkspace>>> = ({ signal }) => getWorkspace({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkspace>>> = ({ signal }) => getWorkspace({ ...(signal ? { signal } : {}), ...fetchOptions });
 
 
 

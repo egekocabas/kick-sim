@@ -114,6 +114,8 @@ func runSingle(ctx context.Context, service *app.Service, entry scenario.Entry, 
 }
 
 func runTimeline(ctx context.Context, service *app.Service, entry scenario.Entry, options Options, logicalTime time.Time, report *WorkflowResult) error {
+	// Logical time advances with authored waits even when SkipWait removes the
+	// wall-clock delay, keeping signatures and replayable payloads deterministic.
 	for stepIndex, step := range entry.Scenario.Steps {
 		if step.Wait != "" {
 			duration, _ := time.ParseDuration(step.Wait)
