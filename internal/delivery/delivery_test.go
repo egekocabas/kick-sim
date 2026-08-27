@@ -3,6 +3,8 @@ package delivery
 import (
 	"context"
 	"testing"
+
+	"github.com/egekocabas/kick-sim/internal/loopback"
 )
 
 func TestSendRejectsNonLoopbackDestination(t *testing.T) {
@@ -36,7 +38,7 @@ func TestValidateLoopbackDestination(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			err := validateLoopbackDestination(test.destination)
+			err := loopback.ValidateURL(test.destination)
 			if test.wantError && err == nil {
 				t.Fatalf("validateLoopbackDestination(%q) returned nil", test.destination)
 			}

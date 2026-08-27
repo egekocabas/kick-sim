@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -147,6 +148,60 @@ func TestRotateKeysReplacesMatchingPair(t *testing.T) {
 	}
 	if bytes.Equal(before, after) {
 		t.Fatal("RotateKeys() did not replace the public key")
+	}
+	if err := Validate(root); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReplaceKeyPairRollsBackAfterInstallFailure(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	paths, err := Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalPrivate, err := os.ReadFile(paths.PrivateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalPublic, err := os.ReadFile(paths.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := signing.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	privatePEM, err := signing.MarshalPrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicPEM, err := signing.MarshalPublicKey(&key.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	renames := 0
+	operations := osKeyFileOperations()
+	operations.rename = func(source, target string) error {
+		renames++
+		if renames == 4 {
+			return errors.New("injected public install failure")
+		}
+		return os.Rename(source, target)
+	}
+	if err := replaceKeyPair(paths, privatePEM, publicPEM, operations); err == nil {
+		t.Fatal("replaceKeyPair() succeeded after an injected failure")
+	}
+	afterPrivate, err := os.ReadFile(paths.PrivateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterPublic, err := os.ReadFile(paths.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(afterPrivate, originalPrivate) || !bytes.Equal(afterPublic, originalPublic) {
+		t.Fatal("replaceKeyPair() did not restore the original pair")
 	}
 	if err := Validate(root); err != nil {
 		t.Fatal(err)

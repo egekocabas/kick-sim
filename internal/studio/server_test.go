@@ -92,7 +92,7 @@ func TestScenarioSourceSaveReturnsConflictWithoutOverwriting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store := scenario.NewStore(root, service.Events, service.Config)
+	store := scenario.NewStore(root, service.EventRegistry(), service.Configuration())
 	entry, err := store.Copy("builtin:chat/basic-message", "editing/conflict", "kick-sim@test")
 	if err != nil {
 		t.Fatal(err)

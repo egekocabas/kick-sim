@@ -19,8 +19,8 @@ func suiteStore(serviceEnvironment *environment) (*suite.Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	scenarios := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors)
-	return suite.NewStore(service.Workspace, scenarios), nil
+	scenarios := scenario.NewStore(service.WorkspaceRoot(), service.EventRegistry(), service.Configuration(), service.ActorRegistry())
+	return suite.NewStore(service.WorkspaceRoot(), scenarios), nil
 }
 
 func newSuiteListCommand(environment *environment) *cobra.Command {
@@ -93,8 +93,8 @@ func newSuiteRunCommand(environment *environment) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		scenarios := scenario.NewStore(service.Workspace, service.Events, service.Config, service.Actors)
-		store := suite.NewStore(service.Workspace, scenarios)
+		scenarios := scenario.NewStore(service.WorkspaceRoot(), service.EventRegistry(), service.Configuration(), service.ActorRegistry())
+		store := suite.NewStore(service.WorkspaceRoot(), scenarios)
 		entry, err := store.Get(args[0])
 		if err != nil {
 			return scenarioError(err)

@@ -25,7 +25,7 @@ func TestTimelineUsesOneRunnerAndDeterministicLogicalTime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store := scenario.NewStore(root, service.Events, service.Config, service.Actors)
+	store := scenario.NewStore(root, service.EventRegistry(), service.Configuration(), service.ActorRegistry())
 	entry, err := store.Get("builtin:workflows/complete-stream-session")
 	if err != nil {
 		t.Fatal(err)

@@ -8,9 +8,9 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
+
+	"github.com/egekocabas/kick-sim/internal/loopback"
 )
 
 const (
@@ -45,7 +45,7 @@ type Result struct {
 }
 
 func Send(ctx context.Context, client *http.Client, destination string, metadata Metadata, body []byte) (Result, error) {
-	if err := validateLoopbackDestination(destination); err != nil {
+	if err := loopback.ValidateURL(destination); err != nil {
 		return Result{}, err
 	}
 
@@ -129,30 +129,4 @@ func NewLoopbackClient(timeout time.Duration) *http.Client {
 			return errors.New("webhook redirects are disabled")
 		},
 	}
-}
-
-func validateLoopbackDestination(destination string) error {
-	parsed, err := url.Parse(destination)
-	if err != nil {
-		return fmt.Errorf("parse destination URL: %w", err)
-	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return errors.New("destination URL must use http or https")
-	}
-	if parsed.User != nil || parsed.Hostname() == "" {
-		return errors.New("destination URL must contain a host and no user information")
-	}
-	if parsed.Fragment != "" {
-		return errors.New("destination URL must not contain a fragment")
-	}
-
-	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
-	if host == "localhost" {
-		return nil
-	}
-	ip := net.ParseIP(host)
-	if ip == nil || !ip.IsLoopback() {
-		return errors.New("destination URL must use a loopback host")
-	}
-	return nil
 }
