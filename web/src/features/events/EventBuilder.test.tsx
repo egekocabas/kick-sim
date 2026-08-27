@@ -123,4 +123,39 @@ describe("event builder request state", () => {
     await screen.findByText("success · HTTP 200");
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.activity });
   });
+
+  it("keeps the save confirmation after the copied scenario loads", async () => {
+    const saved = {
+      ...scenario,
+      builtIn: false,
+      draftPayload: { ...scenario.draftPayload, content: "Saved copy" },
+      id: "stable/basic-message",
+    };
+    let scenarios = [scenario];
+    vi.spyOn(window, "prompt").mockReturnValue(saved.id);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/scenarios") return jsonResponse({ items: scenarios });
+        if (url === "/api/scenario-duplicates") {
+          scenarios = [scenario, saved];
+          return jsonResponse(saved);
+        }
+        if (url.startsWith("/api/scenario?")) {
+          return jsonResponse(url.includes("stable%2Fbasic-message") ? saved : scenario);
+        }
+        throw new Error(`Unexpected request ${url}`);
+      }),
+    );
+
+    renderWithQueryClient(<EventBuilder initialScenarioID={undefined} />);
+    const save = (await screen.findByRole("button", { name: "Save as copy" })) as HTMLButtonElement;
+    await waitFor(() => expect(save.disabled).toBe(false));
+    fireEvent.click(save);
+
+    await waitFor(() => expect((screen.getByLabelText("Scenario") as HTMLSelectElement).value).toBe(saved.id));
+    await waitFor(() => expect((screen.getByLabelText("Content") as HTMLInputElement).value).toBe("Saved copy"));
+    expect(screen.getByText(`Saved ${saved.id}`)).toBeTruthy();
+  });
 });
