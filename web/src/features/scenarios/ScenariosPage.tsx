@@ -170,7 +170,7 @@ function ScenarioSourceEditor({ id, onClose, onSelect }: { id: string; onClose: 
         </>
       ) : <p className="empty" role="status">Loading source…</p>}
       {mutationError && <Notice tone="error">{errorMessage(mutationError)}</Notice>}
-      {message && <Notice tone={message.includes("saved") || message.includes("Reloaded") ? "success" : "error"}>{message}</Notice>}
+      {message && <Notice tone={message.toLowerCase().includes("saved") || message.includes("Reloaded") ? "success" : "error"}>{message}</Notice>}
     </Section>
   );
 }

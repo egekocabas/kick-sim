@@ -37,7 +37,7 @@ export function WorkflowsPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.activity });
     },
   });
-  const busyID = timelineRun.variables ?? suiteRun.variables ?? "";
+  const busyID = timelineRun.isPending ? timelineRun.variables : suiteRun.isPending ? suiteRun.variables : "";
   const mutationError = timelineRun.error ?? suiteRun.error;
 
   return (
