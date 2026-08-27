@@ -101,6 +101,8 @@ func (store *Store) Save(ctx context.Context, record Record) error {
 }
 
 func (store *Store) prune(ctx context.Context, tx *sql.Tx, now time.Time) error {
+	// Retention deletes complete runs so foreign-key cascades cannot leave an
+	// event or attempt detached from the authored run that produced it.
 	maxAge, err := time.ParseDuration(store.settings.MaxAge)
 	if err != nil {
 		return fmt.Errorf("parse history retention age: %w", err)

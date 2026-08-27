@@ -339,6 +339,8 @@ func osKeyFileOperations() keyFileOperations {
 	return keyFileOperations{rename: os.Rename, remove: os.Remove}
 }
 
+// Key rotation retains both backups until the staged pair has been installed,
+// parsed, matched, and synced. Any earlier failure restores the pair together.
 func replaceKeyPair(paths Paths, privatePEM, publicPEM []byte, operations keyFileOperations) error {
 	privateDirectory := filepath.Dir(paths.PrivateKey)
 	publicDirectory := filepath.Dir(paths.PublicKey)
