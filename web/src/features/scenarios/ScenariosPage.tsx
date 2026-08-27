@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import {
   duplicateScenario,
   getScenario,
@@ -49,7 +49,12 @@ export function ScenariosPage({ onOpen }: { onOpen: (id: string) => void }) {
               <p>{item.description || item.validationErrors?.join("; ")}</p>
               <code>{item.eventType ? `${item.eventType}@${item.eventVersion}` : item.sourceFormat}</code>
               <div className="button-row">
-                <button className="primary" disabled={item.valid === false} onClick={() => onOpen(item.id)} type="button">
+                <button
+                  className="primary"
+                  disabled={item.valid === false}
+                  onClick={() => onOpen(item.id)}
+                  type="button"
+                >
                   Open
                 </button>
                 <button
@@ -62,7 +67,11 @@ export function ScenariosPage({ onOpen }: { onOpen: (id: string) => void }) {
                 >
                   Duplicate
                 </button>
-                {!item.builtIn && <button onClick={() => setEditingID(item.id)} type="button">Edit source</button>}
+                {!item.builtIn && (
+                  <button onClick={() => setEditingID(item.id)} type="button">
+                    Edit source
+                  </button>
+                )}
               </div>
             </article>
           ))}
@@ -74,7 +83,15 @@ export function ScenariosPage({ onOpen }: { onOpen: (id: string) => void }) {
   );
 }
 
-function ScenarioSourceEditor({ id, onClose, onSelect }: { id: string; onClose: () => void; onSelect: (id: string) => void }) {
+function ScenarioSourceEditor({
+  id,
+  onClose,
+  onSelect,
+}: {
+  id: string;
+  onClose: () => void;
+  onSelect: (id: string) => void;
+}) {
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: queryKeys.scenarioSource(id),
@@ -130,7 +147,9 @@ function ScenarioSourceEditor({ id, onClose, onSelect }: { id: string; onClose: 
   });
   const saveCopy = useMutation({
     mutationFn: async (targetID: string) =>
-      successful<ScenarioDetail>(await saveScenarioSourceCopy({ sourceId: id, targetId: targetID, source: draftSource })),
+      successful<ScenarioDetail>(
+        await saveScenarioSourceCopy({ sourceId: id, targetId: targetID, source: draftSource }),
+      ),
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.scenarios });
       onSelect(saved.id);
@@ -143,34 +162,102 @@ function ScenarioSourceEditor({ id, onClose, onSelect }: { id: string; onClose: 
   const ready = loadedID.current === id && Boolean(baselineRevision);
 
   return (
-    <Section title={`Edit source · ${id}`} hint={`${detail?.sourceFormat?.toUpperCase() ?? "Source"} · exact file text`}>
-      {query.isError && <Notice tone="error">Source file is no longer available at this scenario ID. Your draft is still open and can be saved as a copy.</Notice>}
+    <Section
+      title={`Edit source · ${id}`}
+      hint={`${detail?.sourceFormat?.toUpperCase() ?? "Source"} · exact file text`}
+    >
+      {query.isError && (
+        <Notice tone="error">
+          Source file is no longer available at this scenario ID. Your draft is still open and can be saved as a copy.
+        </Notice>
+      )}
       {diskChange && (
         <div className="source-conflict" role="alert">
           <strong>File changed on disk</strong>
           <p>Your open draft was not replaced.</p>
           <div className="button-row">
-            <button className="primary" onClick={() => { accept(diskChange); setMessage(diskChange.valid ? "Reloaded file from disk" : "Reloaded invalid file for repair"); }} type="button">Reload file</button>
-            <button onClick={() => { setIgnoredRevision(diskChange.revision); setDiskChange(undefined); setMessage("Kept your draft; saving to the original file will still require its prior revision"); }} type="button">Keep draft</button>
+            <button
+              className="primary"
+              onClick={() => {
+                accept(diskChange);
+                setMessage(diskChange.valid ? "Reloaded file from disk" : "Reloaded invalid file for repair");
+              }}
+              type="button"
+            >
+              Reload file
+            </button>
+            <button
+              onClick={() => {
+                setIgnoredRevision(diskChange.revision);
+                setDiskChange(undefined);
+                setMessage("Kept your draft; saving to the original file will still require its prior revision");
+              }}
+              type="button"
+            >
+              Keep draft
+            </button>
           </div>
         </div>
       )}
-      {detail?.valid === false && detail.validationErrors?.map((problem) => <Notice tone="error" key={problem}>{problem}</Notice>)}
+      {detail?.valid === false &&
+        detail.validationErrors?.map((problem) => (
+          <Notice tone="error" key={problem}>
+            {problem}
+          </Notice>
+        ))}
       {ready ? (
         <>
-          <textarea className="source-editor" aria-label="Scenario source" value={draftSource} onChange={(event) => { setDraftSource(event.target.value); setMessage(""); }} spellCheck={false} />
+          <textarea
+            className="source-editor"
+            aria-label="Scenario source"
+            value={draftSource}
+            onChange={(event) => {
+              setDraftSource(event.target.value);
+              setMessage("");
+            }}
+            spellCheck={false}
+          />
           <div className="source-actions">
             <div className="button-row">
-              <button className="primary" disabled={busy || draftSource === detail?.source} onClick={() => { setMessage(""); save.mutate(); }} type="button">Save source</button>
-              <button disabled={busy || !draftSource} onClick={() => { const targetID = window.prompt("New scenario ID", `${id}-copy`); if (targetID) saveCopy.mutate(targetID); }} type="button">Save as copy</button>
-              <button onClick={onClose} type="button">Close</button>
+              <button
+                className="primary"
+                disabled={busy || draftSource === detail?.source}
+                onClick={() => {
+                  setMessage("");
+                  save.mutate();
+                }}
+                type="button"
+              >
+                Save source
+              </button>
+              <button
+                disabled={busy || !draftSource}
+                onClick={() => {
+                  const targetID = window.prompt("New scenario ID", `${id}-copy`);
+                  if (targetID) saveCopy.mutate(targetID);
+                }}
+                type="button"
+              >
+                Save as copy
+              </button>
+              <button onClick={onClose} type="button">
+                Close
+              </button>
             </div>
             <code>{baselineRevision}</code>
           </div>
         </>
-      ) : <p className="empty" role="status">Loading source…</p>}
+      ) : (
+        <p className="empty" role="status">
+          Loading source…
+        </p>
+      )}
       {mutationError && <Notice tone="error">{errorMessage(mutationError)}</Notice>}
-      {message && <Notice tone={message.toLowerCase().includes("saved") || message.includes("Reloaded") ? "success" : "error"}>{message}</Notice>}
+      {message && (
+        <Notice tone={message.toLowerCase().includes("saved") || message.includes("Reloaded") ? "success" : "error"}>
+          {message}
+        </Notice>
+      )}
     </Section>
   );
 }

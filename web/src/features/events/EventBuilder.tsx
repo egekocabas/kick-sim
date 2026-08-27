@@ -1,11 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { duplicateScenario, generateEvent, getScenario, listScenarios, triggerEvent, validateEvent } from "../../api/generated/client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  duplicateScenario,
+  generateEvent,
+  getScenario,
+  listScenarios,
+  triggerEvent,
+  validateEvent,
+} from "../../api/generated/client";
 import type { DeliveryResult, EventDeliveryRequest, ScenarioDetail, ScenarioSummary } from "../../api/generated/models";
 import { Notice, QueryState } from "../../components/ui";
 import { errorMessage, successful } from "../../lib/api";
 import { queryKeys } from "../../lib/queryKeys";
-import { ObjectEditor, type JSONObject } from "./PayloadEditor";
+import { type JSONObject, ObjectEditor } from "./PayloadEditor";
 
 type EditorView = "form" | "json" | "http";
 
@@ -38,7 +45,10 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
 
   const scenariosQuery = useQuery({
     queryKey: queryKeys.validScenarios,
-    queryFn: async () => successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items?.filter((item) => item.valid !== false && item.kind !== "timeline") ?? [],
+    queryFn: async () =>
+      successful<{ items: ScenarioSummary[] | null }>(await listScenarios()).items?.filter(
+        (item) => item.valid !== false && item.kind !== "timeline",
+      ) ?? [],
   });
   useEffect(() => {
     if (!selectedID && scenariosQuery.data?.[0]) setSelectedID(scenariosQuery.data[0].id);
@@ -61,9 +71,12 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
     setResult(undefined);
     setMessage("");
   }, [scenarioQuery.data]);
-  useEffect(() => () => {
-    if (validationTimer.current !== undefined) window.clearTimeout(validationTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (validationTimer.current !== undefined) window.clearTimeout(validationTimer.current);
+    },
+    [],
+  );
 
   const applyDraft = (next: JSONObject) => {
     validationSequence.current++;
@@ -94,7 +107,13 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
     setValidatingRaw(true);
     validationTimer.current = window.setTimeout(async () => {
       try {
-        successful(await validateEvent({ eventType: scenario.eventType, eventVersion: scenario.eventVersion, payload: parsed as JSONObject }));
+        successful(
+          await validateEvent({
+            eventType: scenario.eventType,
+            eventVersion: scenario.eventVersion,
+            payload: parsed as JSONObject,
+          }),
+        );
         if (currentValidation === validationSequence.current) {
           setDraft(parsed as JSONObject);
           setRawError("");
@@ -144,7 +163,9 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
   const saveCopy = useMutation({
     mutationFn: async (targetID: string) => {
       if (!scenario) throw new Error("Select a valid scenario first");
-      return successful<ScenarioDetail>(await duplicateScenario({ sourceId: scenario.id, targetId: targetID, payload: draft }));
+      return successful<ScenarioDetail>(
+        await duplicateScenario({ sourceId: scenario.id, targetId: targetID, payload: draft }),
+      );
     },
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.scenarios });
@@ -158,11 +179,29 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
   return (
     <>
       <section className="context-bar">
-        <div><small>Scenario</small><select aria-label="Scenario" value={selectedID} onChange={(event) => setSelectedID(event.target.value)}>{scenariosQuery.data?.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></div>
-        <div><small>Event</small><strong>{scenario ? `${scenario.eventType}@${scenario.eventVersion}` : "Loading…"}</strong></div>
-        <div><small>Signing</small><strong>Simulator RSA key</strong></div>
+        <div>
+          <small>Scenario</small>
+          <select aria-label="Scenario" value={selectedID} onChange={(event) => setSelectedID(event.target.value)}>
+            {scenariosQuery.data?.map((item) => (
+              <option value={item.id} key={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <small>Event</small>
+          <strong>{scenario ? `${scenario.eventType}@${scenario.eventVersion}` : "Loading…"}</strong>
+        </div>
+        <div>
+          <small>Signing</small>
+          <strong>Simulator RSA key</strong>
+        </div>
       </section>
-      <QueryState pending={scenariosQuery.isPending || scenarioQuery.isPending} error={scenariosQuery.error ?? scenarioQuery.error} />
+      <QueryState
+        pending={scenariosQuery.isPending || scenarioQuery.isPending}
+        error={scenariosQuery.error ?? scenarioQuery.error}
+      />
       <section className="builder-layout">
         <div className="editor-card">
           <div className="tabs" role="tablist" aria-label="Payload editor view">
@@ -181,16 +220,80 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
               </button>
             ))}
           </div>
-          {view === "form" && <div id="editor-panel-form" role="tabpanel" aria-labelledby="editor-tab-form"><ObjectEditor value={draft} onChange={applyDraft} /></div>}
-          {view === "json" && <div id="editor-panel-json" role="tabpanel" aria-labelledby="editor-tab-json" className="raw-editor"><textarea aria-label="Raw JSON payload" value={raw} onChange={(event) => applyRaw(event.target.value)} spellCheck={false} />{validatingRaw && <p role="status">Validating payload…</p>}{rawError && <Notice tone="error">{rawError}</Notice>}</div>}
-          {view === "http" && <div id="editor-panel-http" role="tabpanel" aria-labelledby="editor-tab-http">{preview.isError && <Notice tone="error">{preview.error.message}</Notice>}<pre className="code-preview">{preview.data ?? (preview.isFetching ? "Generating signed preview…" : "Preview unavailable")}</pre></div>}
+          {view === "form" && (
+            <div id="editor-panel-form" role="tabpanel" aria-labelledby="editor-tab-form">
+              <ObjectEditor value={draft} onChange={applyDraft} />
+            </div>
+          )}
+          {view === "json" && (
+            <div id="editor-panel-json" role="tabpanel" aria-labelledby="editor-tab-json" className="raw-editor">
+              <textarea
+                aria-label="Raw JSON payload"
+                value={raw}
+                onChange={(event) => applyRaw(event.target.value)}
+                spellCheck={false}
+              />
+              {validatingRaw && <p role="status">Validating payload…</p>}
+              {rawError && <Notice tone="error">{rawError}</Notice>}
+            </div>
+          )}
+          {view === "http" && (
+            <div id="editor-panel-http" role="tabpanel" aria-labelledby="editor-tab-http">
+              {preview.isError && <Notice tone="error">{preview.error.message}</Notice>}
+              <pre className="code-preview">
+                {preview.data ?? (preview.isFetching ? "Generating signed preview…" : "Preview unavailable")}
+              </pre>
+            </div>
+          )}
         </div>
         <aside className="run-panel">
-          <p className="eyebrow">Local delivery</p><h2>Send a signed event</h2><p>Run-local edits never change the source scenario.</p>
-          <label>Temporary loopback URL<input placeholder="Use configured destination" value={destinationURL} onChange={(event) => setDestinationURL(event.target.value)} /></label>
-          <dl><div><dt>Expected status</dt><dd>{scenario?.expectedStatuses?.join(", ") || "2xx"}</dd></div><div><dt>History</dt><dd>Persistent</dd></div><div><dt>Source</dt><dd>{scenario?.builtIn ? "Built-in" : "Custom"}</dd></div></dl>
-          <button className="send-button" disabled={busy || Boolean(rawError) || validatingRaw || !scenario} onClick={() => { setMessage(""); send.mutate(); }} type="button">Send event <span>↗</span></button>
-          <button className="secondary-wide" disabled={busy || Boolean(rawError) || validatingRaw || !scenario} onClick={() => { const targetID = scenario ? window.prompt("New scenario ID", `${scenario.id}-copy`) : null; if (targetID) saveCopy.mutate(targetID); }} type="button">Save as copy</button>
+          <p className="eyebrow">Local delivery</p>
+          <h2>Send a signed event</h2>
+          <p>Run-local edits never change the source scenario.</p>
+          <label>
+            Temporary loopback URL
+            <input
+              placeholder="Use configured destination"
+              value={destinationURL}
+              onChange={(event) => setDestinationURL(event.target.value)}
+            />
+          </label>
+          <dl>
+            <div>
+              <dt>Expected status</dt>
+              <dd>{scenario?.expectedStatuses?.join(", ") || "2xx"}</dd>
+            </div>
+            <div>
+              <dt>History</dt>
+              <dd>Persistent</dd>
+            </div>
+            <div>
+              <dt>Source</dt>
+              <dd>{scenario?.builtIn ? "Built-in" : "Custom"}</dd>
+            </div>
+          </dl>
+          <button
+            className="send-button"
+            disabled={busy || Boolean(rawError) || validatingRaw || !scenario}
+            onClick={() => {
+              setMessage("");
+              send.mutate();
+            }}
+            type="button"
+          >
+            Send event <span>↗</span>
+          </button>
+          <button
+            className="secondary-wide"
+            disabled={busy || Boolean(rawError) || validatingRaw || !scenario}
+            onClick={() => {
+              const targetID = scenario ? window.prompt("New scenario ID", `${scenario.id}-copy`) : null;
+              if (targetID) saveCopy.mutate(targetID);
+            }}
+            type="button"
+          >
+            Save as copy
+          </button>
           {mutationError && <Notice tone="error">{errorMessage(mutationError)}</Notice>}
           {message && <Notice tone={result?.error ? "error" : "success"}>{message}</Notice>}
         </aside>

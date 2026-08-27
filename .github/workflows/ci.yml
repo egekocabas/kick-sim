@@ -128,7 +128,7 @@ jobs:
         run: git diff --exit-code -- web/openapi.json web/src/api/generated
       - name: Test and build Studio
         working-directory: web
-        run: npm test && npm run build
+        run: npm run check && npm test && npm run build
       - name: Build embedded executable
         run: go build -trimpath -tags studio_embed -o ./kick-sim ./cmd/kick-sim
       - name: Test embedded assets

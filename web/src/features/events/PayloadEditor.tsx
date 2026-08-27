@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Notice, friendly } from "../../components/ui";
+import { friendly, Notice } from "../../components/ui";
 
 export type JSONObject = Record<string, unknown>;
 
@@ -13,21 +13,39 @@ export function ObjectEditor({ value, onChange }: { value: JSONObject; onChange:
   );
 }
 
-function ValueEditor({ label, value, onChange }: { label: string; value: unknown; onChange: (value: unknown) => void }) {
+function ValueEditor({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
   if (value !== null && !Array.isArray(value) && typeof value === "object") {
     return (
       <fieldset>
         <legend>{friendly(label)}</legend>
         <div className="nested-fields">
           {Object.entries(value as JSONObject).map(([key, item]) => (
-            <ValueEditor key={key} label={key} value={item} onChange={(next) => onChange({ ...(value as JSONObject), [key]: next })} />
+            <ValueEditor
+              key={key}
+              label={key}
+              value={item}
+              onChange={(next) => onChange({ ...(value as JSONObject), [key]: next })}
+            />
           ))}
         </div>
       </fieldset>
     );
   }
   if (typeof value === "boolean") {
-    return <label className="check-field"><input type="checkbox" checked={value} onChange={(event) => onChange(event.target.checked)} />{friendly(label)}</label>;
+    return (
+      <label className="check-field">
+        <input type="checkbox" checked={value} onChange={(event) => onChange(event.target.checked)} />
+        {friendly(label)}
+      </label>
+    );
   }
   if (Array.isArray(value) || value === null) {
     return <StructuredValueEditor label={label} value={value} onChange={onChange} />;
@@ -44,7 +62,15 @@ function ValueEditor({ label, value, onChange }: { label: string; value: unknown
   );
 }
 
-function StructuredValueEditor({ label, value, onChange }: { label: string; value: unknown[] | null; onChange: (value: unknown) => void }) {
+function StructuredValueEditor({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: unknown[] | null;
+  onChange: (value: unknown) => void;
+}) {
   const canonical = JSON.stringify(value, null, 2);
   const [text, setText] = useState(canonical);
   const [error, setError] = useState("");

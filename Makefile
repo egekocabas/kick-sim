@@ -11,7 +11,7 @@ test: generate
 	test -z "$$(gofmt -l .)"
 	go test -race ./...
 	go vet ./...
-	cd web && npm run typecheck && npm test && npm run build
+	cd web && npm run check && npm run typecheck && npm test && npm run build
 	git diff --exit-code -- web/openapi.json web/src/api/generated
 	go test -tags studio_embed ./web ./internal/studio
 

@@ -1,17 +1,30 @@
+import type { Page } from "../../App";
 import type { Bootstrap } from "../../api/generated/models";
 import { ActivityTable, Section, Stat } from "../../components/ui";
-import type { Page } from "../../App";
 
-export function Dashboard({ bootstrap, onNavigate }: { bootstrap: Bootstrap | undefined; onNavigate: (page: Page) => void }) {
+export function Dashboard({
+  bootstrap,
+  onNavigate,
+}: {
+  bootstrap: Bootstrap | undefined;
+  onNavigate: (page: Page) => void;
+}) {
   return (
     <div className="page-content">
       <section className="hero-card">
         <p className="eyebrow">Ready on loopback</p>
         <h2>Build, sign, send, and inspect webhooks locally.</h2>
-        <p>The browser never receives your private key. Go creates the exact bytes, headers, and signature used for delivery.</p>
+        <p>
+          The browser never receives your private key. Go creates the exact bytes, headers, and signature used for
+          delivery.
+        </p>
         <div className="button-row">
-          <button className="primary" onClick={() => onNavigate("Events")} type="button">Build an event</button>
-          <button onClick={() => onNavigate("Activity")} type="button">Inspect activity</button>
+          <button className="primary" onClick={() => onNavigate("Events")} type="button">
+            Build an event
+          </button>
+          <button onClick={() => onNavigate("Activity")} type="button">
+            Inspect activity
+          </button>
         </div>
       </section>
       <div className="stat-grid">

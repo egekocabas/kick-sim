@@ -7,8 +7,14 @@ import { queryKeys } from "../../lib/queryKeys";
 
 export function KeysPage() {
   const queryClient = useQueryClient();
-  const key = useQuery({ queryKey: queryKeys.key, queryFn: async () => successful<KeyInfo>(await getSimulatorKeyInfo()) });
-  const publicKey = useQuery({ queryKey: queryKeys.publicKey, queryFn: async () => successful<{ path: string; pem: string }>(await getSimulatorPublicKey()) });
+  const key = useQuery({
+    queryKey: queryKeys.key,
+    queryFn: async () => successful<KeyInfo>(await getSimulatorKeyInfo()),
+  });
+  const publicKey = useQuery({
+    queryKey: queryKeys.publicKey,
+    queryFn: async () => successful<{ path: string; pem: string }>(await getSimulatorPublicKey()),
+  });
   const rotate = useMutation({
     mutationFn: async () => successful(await rotateSimulatorKey({ headers: { "Content-Type": "application/json" } })),
     onSuccess: async () => {
@@ -23,9 +29,27 @@ export function KeysPage() {
     <div className="page-content">
       <Section title="Simulator signing key" hint="The private key stays in the local workspace">
         <QueryState pending={key.isPending || publicKey.isPending} error={queryError} />
-        <div className="detail-grid"><Info label="Algorithm" value={key.data ? `${key.data.algorithm} ${key.data.bits}` : "…"} /><Info label="Fingerprint" value={key.data?.fingerprint ?? "…"} /><Info label="Pair status" value={key.data?.matchingPrivateKey ? "Public/private keys match" : "Key mismatch"} /><Info label="Public key path" value={key.data?.path ?? "…"} /></div>
+        <div className="detail-grid">
+          <Info label="Algorithm" value={key.data ? `${key.data.algorithm} ${key.data.bits}` : "…"} />
+          <Info label="Fingerprint" value={key.data?.fingerprint ?? "…"} />
+          <Info
+            label="Pair status"
+            value={key.data?.matchingPrivateKey ? "Public/private keys match" : "Key mismatch"}
+          />
+          <Info label="Public key path" value={key.data?.path ?? "…"} />
+        </div>
         <Code value={publicKey.data?.pem ?? "Loading public key…"} />
-        <button className="danger" disabled={rotate.isPending} onClick={() => { if (window.confirm("Rotate the simulator key pair? Existing receiver setups will need the new public key.")) rotate.mutate(); }} type="button">{rotate.isPending ? "Rotating…" : "Rotate key pair"}</button>
+        <button
+          className="danger"
+          disabled={rotate.isPending}
+          onClick={() => {
+            if (window.confirm("Rotate the simulator key pair? Existing receiver setups will need the new public key."))
+              rotate.mutate();
+          }}
+          type="button"
+        >
+          {rotate.isPending ? "Rotating…" : "Rotate key pair"}
+        </button>
         {rotate.error && <Notice tone="error">{errorMessage(rotate.error)}</Notice>}
       </Section>
     </div>

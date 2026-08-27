@@ -55,7 +55,12 @@ export function QueryState({
   error: Error | null;
   empty?: boolean | undefined;
 }) {
-  if (pending) return <p className="empty" role="status">Loading…</p>;
+  if (pending)
+    return (
+      <p className="empty" role="status">
+        Loading…
+      </p>
+    );
   if (error) return <Notice tone="error">{error.message}</Notice>;
   if (empty) return <p className="empty">Nothing to show.</p>;
   return null;
@@ -82,7 +87,9 @@ export function ActivityTable({
           type="button"
         >
           <span>
-            <strong>{item.eventType}@{item.eventVersion}</strong>
+            <strong>
+              {item.eventType}@{item.eventVersion}
+            </strong>
             <small>{new Date(item.createdAt).toLocaleString()}</small>
           </span>
           <span className={`outcome ${item.outcome}`}>{item.outcome}</span>

@@ -36,8 +36,12 @@ export function APIDocsPage() {
       <Section title="Local API" hint="OpenAPI 3.1, generated from the Go contracts">
         <p>Use the committed document for client generation or inspect the live document exposed by this process.</p>
         <div className="button-row">
-          <a className="button primary" href="/api/openapi" target="_blank" rel="noreferrer">Open live OpenAPI</a>
-          <a className="button" href="/api/capabilities" target="_blank" rel="noreferrer">View capabilities</a>
+          <a className="button primary" href="/api/openapi" target="_blank" rel="noreferrer">
+            Open live OpenAPI
+          </a>
+          <a className="button" href="/api/capabilities" target="_blank" rel="noreferrer">
+            View capabilities
+          </a>
         </div>
       </Section>
     </div>

@@ -18,11 +18,18 @@ test("edits, saves, sends, inspects, replays, and runs workflows", async ({ page
   await expect(page.getByText("http_accepted · HTTP 204")).toBeVisible();
 
   await page.getByRole("button", { name: "Activity" }).click();
-  await page.getByRole("button", { name: /chat\.message\.sent@1/ }).first().click();
+  await page
+    .getByRole("button", { name: /chat\.message\.sent@1/ })
+    .first()
+    .click();
   await expect(page.getByRole("heading", { name: "Attempt inspector" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Exact body" }).locator("xpath=following-sibling::pre[1]")).toContainText("stable Studio delivery");
+  await expect(
+    page.getByRole("heading", { name: "Exact body" }).locator("xpath=following-sibling::pre[1]"),
+  ).toContainText("stable Studio delivery");
 
-  const replay = page.waitForResponse((response) => response.url().endsWith("/replay") && response.request().method() === "POST");
+  const replay = page.waitForResponse(
+    (response) => response.url().endsWith("/replay") && response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Replay exact" }).click();
   expect((await replay).status()).toBe(200);
 

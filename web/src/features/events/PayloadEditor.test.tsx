@@ -22,7 +22,7 @@ describe("structured payload values", () => {
     render(<ObjectEditor value={{ tags: ["first"] }} onChange={onChange} />);
     const editor = screen.getByLabelText("Tags");
     fireEvent.change(editor, { target: { value: "[" } });
-    fireEvent.change(editor, { target: { value: "[\"second\"]" } });
+    fireEvent.change(editor, { target: { value: '["second"]' } });
 
     expect(onChange).toHaveBeenLastCalledWith({ tags: ["second"] });
     expect(screen.queryByRole("alert")).toBeNull();
