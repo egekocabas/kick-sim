@@ -208,13 +208,6 @@ func ReadPrivateKey(path string) (*rsa.PrivateKey, error) {
 	return signing.ReadPrivateKey(path)
 }
 
-// ReadPublicKey reads one key while excluding in-process key rotation.
-func ReadPublicKey(path string) (*rsa.PublicKey, error) {
-	keyFiles.RLock()
-	defer keyFiles.RUnlock()
-	return signing.ReadPublicKey(path)
-}
-
 // ReadPublicKeyPEM returns the public-key file while excluding rotation.
 func ReadPublicKeyPEM(path string) ([]byte, error) {
 	keyFiles.RLock()
