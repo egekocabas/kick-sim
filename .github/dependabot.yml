@@ -6,8 +6,13 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # Let routine releases settle before proposing them. Security updates are
+    # not subject to Dependabot cooldowns.
+    cooldown:
+      default-days: 7
     groups:
       go-dependencies:
+        applies-to: version-updates
         patterns:
           - "*"
     open-pull-requests-limit: 5
@@ -17,8 +22,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     groups:
       studio-dependencies:
+        applies-to: version-updates
         patterns:
           - "*"
     open-pull-requests-limit: 5
@@ -28,8 +36,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
+        applies-to: version-updates
         patterns:
           - "*"
     open-pull-requests-limit: 5
