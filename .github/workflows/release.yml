@@ -5,12 +5,17 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   release:
+    name: Build GitHub release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.release-metadata.outputs.version }}
+      prerelease: ${{ steps.release-metadata.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -24,6 +29,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - name: Read release metadata
+        id: release-metadata
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          node -e 'const value = process.argv[1]; if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(value)) process.exit(1)' "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Test release source
         run: go test ./...
       - name: Build Studio assets
@@ -35,3 +52,163 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build npm distribution bundle
+        run: >-
+          node packaging/npm/scripts/build.mjs
+          --version "${{ steps.release-metadata.outputs.version }}"
+          --dist dist
+          --out dist/distribution/npm
+      - name: Collect package-manager manifests
+        run: >-
+          node packaging/release/collect.mjs
+          --dist dist
+          --out dist/distribution
+      - name: Upload distribution bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: distribution-${{ github.ref_name }}
+          path: dist/distribution
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-npm:
+    name: Publish npm packages
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Pin npm
+        run: npm install --global npm@11.17.0
+      - uses: actions/download-artifact@v8
+        with:
+          name: distribution-${{ github.ref_name }}
+          path: distribution
+      - name: Publish platform packages and launcher
+        run: node packaging/npm/scripts/publish.mjs --bundle distribution/npm
+
+  publish-homebrew:
+    name: Publish Homebrew Cask
+    needs: release
+    if: needs.release.outputs.prerelease == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: source
+      - uses: actions/checkout@v7
+        with:
+          repository: egekocabas/homebrew-tap
+          token: ${{ secrets.PACKAGE_REPOSITORIES_TOKEN }}
+          path: package-repository
+      - uses: actions/download-artifact@v8
+        with:
+          name: distribution-${{ github.ref_name }}
+          path: distribution
+      - name: Stage Cask
+        run: >-
+          node source/packaging/release/stage-package.mjs
+          --source distribution/homebrew/kick-sim.rb
+          --destination package-repository/Casks/kick-sim.rb
+          --version "${{ needs.release.outputs.version }}"
+      - name: Detect Cask change
+        id: change
+        shell: bash
+        run: |
+          git -C package-repository add Casks/kick-sim.rb
+          if git -C package-repository diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit and push Cask
+        if: steps.change.outputs.changed == 'true'
+        shell: bash
+        run: |
+          git -C package-repository config user.name "github-actions[bot]"
+          git -C package-repository config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C package-repository commit -m "chore(release): update kick-sim to ${{ github.ref_name }}"
+          git -C package-repository push
+
+  publish-scoop:
+    name: Publish Scoop manifest
+    needs: release
+    if: needs.release.outputs.prerelease == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: source
+      - uses: actions/checkout@v7
+        with:
+          repository: egekocabas/scoop-bucket
+          token: ${{ secrets.PACKAGE_REPOSITORIES_TOKEN }}
+          path: package-repository
+      - uses: actions/download-artifact@v8
+        with:
+          name: distribution-${{ github.ref_name }}
+          path: distribution
+      - name: Stage Scoop manifest
+        run: >-
+          node source/packaging/release/stage-package.mjs
+          --source distribution/scoop/kick-sim.json
+          --destination package-repository/kick-sim.json
+          --version "${{ needs.release.outputs.version }}"
+      - name: Detect Scoop change
+        id: change
+        shell: bash
+        run: |
+          git -C package-repository add kick-sim.json
+          if git -C package-repository diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit and push Scoop manifest
+        if: steps.change.outputs.changed == 'true'
+        shell: bash
+        run: |
+          git -C package-repository config user.name "github-actions[bot]"
+          git -C package-repository config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C package-repository commit -m "chore(release): update kick-sim to ${{ github.ref_name }}"
+          git -C package-repository push
+
+  verify-npm:
+    name: Verify npm (${{ matrix.os }})
+    needs:
+      - release
+      - publish-npm
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Pin npm
+        run: npm install --global npm@11.17.0
+      - name: Install and smoke test published package
+        run: >-
+          node packaging/npm/scripts/smoke.mjs
+          --version "${{ needs.release.outputs.version }}"

@@ -68,6 +68,8 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
       - name: Pin npm
         run: npm install --global npm@11.17.0
+      - name: Test release packaging
+        run: npm test --prefix packaging/npm
       - name: Install Studio dependencies
         working-directory: web
         run: npm ci
@@ -174,11 +176,32 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - name: Build Studio assets
         run: npm install --global npm@11.17.0 && npm ci --prefix web && make web
+      - name: Validate GoReleaser configuration
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: check
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: build --snapshot --clean
+          args: release --snapshot --clean --skip=publish
+      - name: Build npm distribution bundle
+        run: >-
+          node packaging/npm/scripts/build.mjs
+          --dist dist
+          --out dist/distribution/npm
+      - name: Collect package-manager manifests
+        run: >-
+          node packaging/release/collect.mjs
+          --dist dist
+          --out dist/distribution
+      - name: Validate generated manifests
+        shell: bash
+        run: |
+          ruby -c dist/distribution/homebrew/kick-sim.rb
+          node -e 'const fs = require("node:fs"); const value = JSON.parse(fs.readFileSync("dist/distribution/scoop/kick-sim.json")); if (!value.version || !/^[a-f0-9]{64}$/.test(value.architecture?.["64bit"]?.hash)) process.exit(1)'
       - name: Smoke test release binary
         shell: bash
         run: |
@@ -188,3 +211,44 @@ jobs:
           "$binary" --output json version
           "$binary" --workspace "$RUNNER_TEMP/release-workspace" init
           "$binary" --workspace "$RUNNER_TEMP/release-workspace" workspace validate
+      - name: Upload snapshot distribution
+        uses: actions/upload-artifact@v7
+        with:
+          name: snapshot-distribution
+          path: dist/distribution
+          if-no-files-found: error
+          retention-days: 1
+
+  package-smoke:
+    name: Package smoke (${{ matrix.os }})
+    needs: release-snapshot
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: snapshot-distribution
+          path: distribution
+      - name: Smoke test packaged executable and Studio
+        run: node packaging/npm/scripts/smoke.mjs --bundle distribution/npm
+      - name: Audit generated Homebrew Cask
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew tap-new --no-git kick-sim/ci
+          trap 'brew untap kick-sim/ci' EXIT
+          tap_path="$(brew --repository kick-sim/ci)"
+          mkdir -p "$tap_path/Casks"
+          cp distribution/homebrew/kick-sim.rb "$tap_path/Casks/kick-sim.rb"
+          brew audit --cask --strict kick-sim/ci/kick-sim

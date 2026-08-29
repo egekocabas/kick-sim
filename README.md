@@ -25,7 +25,25 @@ Bundled contracts currently cover `channel.followed`, `chat.message.sent`, `live
 
 ## Install
 
-Prebuilt archives are available for macOS and Linux (`amd64`, `arm64`) and Windows (`amd64`) on the [Releases page](https://github.com/egekocabas/kick-sim/releases). Releases are currently marked as pre-releases. Verify the downloaded archive against `checksums.txt`, extract it, and place `kick-sim` on your `PATH`.
+Install the same embedded-Studio binary published on the [Releases page](https://github.com/egekocabas/kick-sim/releases) through a package manager:
+
+```sh
+# npm, on macOS or Linux (amd64/arm64) and Windows (amd64)
+npm install --global kick-sim
+
+# Homebrew, on macOS or Linux (amd64/arm64)
+brew install --cask egekocabas/tap/kick-sim
+
+# Scoop, on Windows (amd64)
+scoop bucket add egekocabas https://github.com/egekocabas/scoop-bucket
+scoop install kick-sim
+```
+
+The npm package requires Node.js 22.14 or newer to launch the native executable. It has no install scripts and downloads only the package matching the host operating system and architecture. You can also run it without a global install using `npx kick-sim`.
+
+Prebuilt archives remain available for macOS and Linux (`amd64`, `arm64`) and Windows (`amd64`). Verify an archive against `checksums.txt`, extract it, and place `kick-sim` on your `PATH`.
+
+Plain tags such as `v0.5.0` are published on the default package-manager channels even before 1.0. Release candidates use npm's `next` channel (`npx kick-sim@next`) and are not published to Homebrew or Scoop.
 
 To build the embedded Studio from source, install:
 
@@ -132,6 +150,7 @@ See [Architecture](docs/architecture.md) for dependency direction, orchestration
 - [Workspace and authored-format contract](docs/workspace-contract.md)
 - [Compatibility and provenance](docs/compatibility.md)
 - [Security model](SECURITY.md)
+- [Release and package publishing](docs/releasing.md)
 - [Committed Studio OpenAPI document](web/openapi.json)
 
 ## Project status

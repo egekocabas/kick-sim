@@ -1,0 +1,11 @@
+{
+  "name": "kick-sim-release-packaging",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs ../release/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22.14.0"
+  }
+}
