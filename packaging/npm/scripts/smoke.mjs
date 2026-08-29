@@ -13,6 +13,50 @@ function run(command, args, options = {}) {
   return result.stdout;
 }
 
+function hasExited(child) {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
+function waitForExit(child, timeout) {
+  if (hasExited(child)) return Promise.resolve(true);
+
+  return new Promise((accept) => {
+    let timer;
+    const onExit = () => {
+      clearTimeout(timer);
+      accept(true);
+    };
+    child.once("exit", onExit);
+    timer = setTimeout(() => {
+      child.off("exit", onExit);
+      accept(hasExited(child));
+    }, timeout);
+  });
+}
+
+async function stopProcessTree(child) {
+  if (hasExited(child)) return;
+
+  if (process.platform === "win32") {
+    // child.kill() only terminates the Node launcher on Windows, leaving the
+    // native executable running and locking it against fixture cleanup.
+    spawnSync(
+      "taskkill.exe",
+      ["/pid", String(child.pid), "/t", "/f"],
+      { encoding: "utf8", windowsHide: true },
+    );
+  } else {
+    child.kill("SIGTERM");
+  }
+
+  if (await waitForExit(child, 5_000)) return;
+
+  child.kill("SIGKILL");
+  if (!(await waitForExit(child, 5_000))) {
+    throw new Error(`failed to stop npm smoke process ${child.pid}`);
+  }
+}
+
 async function waitForStudio(url) {
   let lastError;
   for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -135,15 +179,15 @@ async function main() {
         throw new Error("npm binary did not serve the embedded Studio bundle");
       }
     } finally {
-      studio.kill("SIGTERM");
-      await Promise.race([
-        new Promise((accept) => studio.once("exit", accept)),
-        new Promise((accept) => setTimeout(accept, 5_000)),
-      ]);
-      if (studio.exitCode === null && studio.signalCode === null) studio.kill("SIGKILL");
+      await stopProcessTree(studio);
     }
   } finally {
-    await rm(fixture, { recursive: true, force: true });
+    await rm(fixture, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 250,
+    });
   }
   console.log(`npm package smoke test passed on ${process.platform}/${process.arch}`);
 }
