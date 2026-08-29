@@ -75,7 +75,7 @@ async function publishPackage(packageEntry, version, tag, bundleDirectory) {
   assertTagDoesNotDowngrade(packageEntry.name, version, tag);
   if (!integrity) {
     const tarball = resolve(bundleDirectory, "tarballs", packageEntry.filename);
-    runNpm(["publish", tarball, "--access", "public", "--tag", tag, "--provenance"]);
+    runNpm(["publish", tarball, "--access", "public", "--tag", tag]);
   }
   await waitForPackage(packageEntry, version);
   ensureDistTag(packageEntry.name, version, tag);
