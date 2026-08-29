@@ -18,7 +18,12 @@ Complete this setup before pushing the first tag that uses the multi-channel wor
    - `kick-sim`
 5. After a successful OIDC release, set each npm package's publishing access to require 2FA and disallow token publishing.
 
-The npm package metadata must retain the exact repository URL `https://github.com/egekocabas/kick-sim`; npm uses it when validating trusted publishing provenance.
+The npm package metadata must retain the exact repository URL
+`https://github.com/egekocabas/kick-sim`; npm uses it when validating the trusted
+publisher identity and any provenance generated after the repository becomes
+public. Do not force `--provenance` while the source repository is private. OIDC
+trusted publishing still authenticates the release, and npm automatically adds
+provenance when both the repository and package are public.
 
 ## Repository protection
 
