@@ -2,21 +2,6 @@ name: CI
 
 on:
   pull_request:
-    paths-ignore:
-      - "**/*.md"
-      - ".editorconfig"
-      - ".gitattributes"
-      - ".github/CODEOWNERS"
-      - ".github/FUNDING.yml"
-      - ".github/ISSUE_TEMPLATE/**"
-      - ".github/PULL_REQUEST_TEMPLATE.md"
-      - ".github/PULL_REQUEST_TEMPLATE/**"
-      - ".github/dependabot.yml"
-      - ".gitignore"
-      - ".idea/**"
-      - ".vscode/**"
-      - "LICENSE*"
-      - "docs/**"
   push:
     branches:
       - main
@@ -252,3 +237,36 @@ jobs:
           mkdir -p "$tap_path/Casks"
           cp distribution/homebrew/kick-sim.rb "$tap_path/Casks/kick-sim.rb"
           brew audit --cask --strict kick-sim/ci/kick-sim
+
+  required:
+    name: Required CI
+    if: always()
+    needs:
+      - quality
+      - test
+      - studio
+      - release-snapshot
+      - package-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm required jobs passed
+        shell: bash
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          STUDIO_RESULT: ${{ needs.studio.result }}
+          RELEASE_SNAPSHOT_RESULT: ${{ needs.release-snapshot.result }}
+          PACKAGE_SMOKE_RESULT: ${{ needs.package-smoke.result }}
+        run: |
+          for result in \
+            "$QUALITY_RESULT" \
+            "$TEST_RESULT" \
+            "$STUDIO_RESULT" \
+            "$RELEASE_SNAPSHOT_RESULT" \
+            "$PACKAGE_SMOKE_RESULT"
+          do
+            if [ "$result" != "success" ]; then
+              echo "::error::A required CI job completed with result: $result"
+              exit 1
+            fi
+          done

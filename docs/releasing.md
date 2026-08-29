@@ -20,6 +20,19 @@ Complete this setup before pushing the first tag that uses the multi-channel wor
 
 The npm package metadata must retain the exact repository URL `https://github.com/egekocabas/kick-sim`; npm uses it when validating trusted publishing provenance.
 
+## Repository protection
+
+Protect `main` with pull requests and the single `Required CI` status check. The CI
+workflow intentionally starts for every pull request so documentation-only changes
+cannot leave the required check permanently pending. `Required CI` succeeds only
+after the quality, cross-platform test, Studio, release snapshot, and package smoke
+jobs have all succeeded.
+
+Protect release tags with an active tag ruleset targeting `v*`. Restrict tag
+creation, updates, and deletions; block force pushes; and allow only repository
+administrators to bypass the rules so new versions can be created. Treat every
+published release tag as immutable and never move it to another commit.
+
 ## Creating a release
 
 Create releases from a tested commit on `main`:
