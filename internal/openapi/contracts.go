@@ -11,6 +11,7 @@ import (
 	"github.com/egekocabas/kick-sim/internal/workflow"
 )
 
+// Backend defines the application operations exposed by the Studio HTTP API.
 type Backend interface {
 	Bootstrap(context.Context) (Bootstrap, error)
 	Workspace(context.Context) (Workspace, error)
@@ -40,6 +41,7 @@ type Backend interface {
 	RotateKey(context.Context) (KeyInfo, error)
 }
 
+// Bootstrap contains the initial state required to render Studio.
 type Bootstrap struct {
 	APIVersion     int                `json:"apiVersion"`
 	Capabilities   []string           `json:"capabilities"`
@@ -49,6 +51,7 @@ type Bootstrap struct {
 	RecentActivity []history.Activity `json:"recentActivity"`
 }
 
+// Workspace describes the active workspace without exposing secret key material.
 type Workspace struct {
 	Path               string `json:"path"`
 	DefaultDestination string `json:"defaultDestination"`
@@ -57,6 +60,7 @@ type Workspace struct {
 	DatabasePath       string `json:"databasePath"`
 }
 
+// EventContract is the public schema and defaults for one event version.
 type EventContract struct {
 	Type        string          `json:"type"`
 	Version     int             `json:"version"`
@@ -65,12 +69,14 @@ type EventContract struct {
 	Defaults    map[string]any  `json:"defaults"`
 }
 
+// EventPayloadRequest submits a decoded payload for a versioned event contract.
 type EventPayloadRequest struct {
 	EventType    string         `json:"eventType" minLength:"1"`
 	EventVersion int            `json:"eventVersion" minimum:"1"`
 	Payload      map[string]any `json:"payload"`
 }
 
+// EventDeliveryRequest adds delivery overrides to an event payload.
 type EventDeliveryRequest struct {
 	EventPayloadRequest
 	Destination    string `json:"destination,omitempty"`
@@ -78,6 +84,7 @@ type EventDeliveryRequest struct {
 	SubscriptionID string `json:"subscriptionId,omitempty"`
 }
 
+// GeneratedEvent is the API representation of a signed event preview.
 type GeneratedEvent struct {
 	RunID               string            `json:"runId"`
 	GeneratedEventID    string            `json:"generatedEventId"`
@@ -94,6 +101,7 @@ type GeneratedEvent struct {
 	RawHTTP             string            `json:"rawHttp"`
 }
 
+// DeliveryResult combines a generated event with one HTTP delivery outcome.
 type DeliveryResult struct {
 	GeneratedEvent
 	AttemptID          string              `json:"attemptId"`
@@ -112,6 +120,7 @@ type DeliveryResult struct {
 	Error              string              `json:"error,omitempty"`
 }
 
+// ScenarioSummary is the list representation of a built-in or custom scenario.
 type ScenarioSummary struct {
 	ID               string   `json:"id"`
 	Name             string   `json:"name"`
@@ -127,6 +136,7 @@ type ScenarioSummary struct {
 	ValidationErrors []string `json:"validationErrors,omitempty"`
 }
 
+// SuiteSummary is the list representation of a built-in or custom suite.
 type SuiteSummary struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -137,11 +147,13 @@ type SuiteSummary struct {
 	Error       string `json:"error,omitempty"`
 }
 
+// SuiteDetail adds editable source to a suite summary.
 type SuiteDetail struct {
 	SuiteSummary
 	Source string `json:"source"`
 }
 
+// ScenarioDetail adds source, payload, and delivery defaults to a scenario summary.
 type ScenarioDetail struct {
 	ScenarioSummary
 	Source           string         `json:"source"`
@@ -151,24 +163,28 @@ type ScenarioDetail struct {
 	ExpectedStatuses []int          `json:"expectedStatuses,omitempty"`
 }
 
+// ScenarioCopyRequest creates a custom scenario working copy.
 type ScenarioCopyRequest struct {
 	SourceID string         `json:"sourceId" minLength:"1"`
 	TargetID string         `json:"targetId" minLength:"1"`
 	Payload  map[string]any `json:"payload"`
 }
 
+// ScenarioSourceSaveRequest replaces source using an expected revision.
 type ScenarioSourceSaveRequest struct {
 	ID       string `json:"id" minLength:"1"`
 	Revision string `json:"revision" pattern:"^sha256:[a-f0-9]{64}$"`
 	Source   string `json:"source" minLength:"1"`
 }
 
+// ScenarioSourceCopyRequest saves edited source under a new scenario identifier.
 type ScenarioSourceCopyRequest struct {
 	SourceID string `json:"sourceId" minLength:"1"`
 	TargetID string `json:"targetId" minLength:"1"`
 	Source   string `json:"source" minLength:"1"`
 }
 
+// ScenarioRunRequest contains runtime overrides for a scenario or workflow run.
 type ScenarioRunRequest struct {
 	ScenarioID     string         `json:"scenarioId" minLength:"1"`
 	Payload        map[string]any `json:"payload,omitempty"`
@@ -177,16 +193,19 @@ type ScenarioRunRequest struct {
 	SubscriptionID string         `json:"subscriptionId,omitempty"`
 }
 
+// SuiteRunRequest contains runtime destination overrides for a suite run.
 type SuiteRunRequest struct {
 	SuiteID        string `json:"suiteId" minLength:"1"`
 	Destination    string `json:"destination,omitempty"`
 	DestinationURL string `json:"destinationUrl,omitempty"`
 }
 
+// ReplayRequest selects exact or regenerated delivery replay.
 type ReplayRequest struct {
 	Mode string `json:"mode" enum:"exact,regenerated"`
 }
 
+// DeliveryAttemptDetail exposes a retained attempt and its signing input.
 type DeliveryAttemptDetail struct {
 	Run            history.Run     `json:"run"`
 	Event          history.Event   `json:"event"`
@@ -194,11 +213,13 @@ type DeliveryAttemptDetail struct {
 	SignatureInput string          `json:"signatureInput"`
 }
 
+// PublicKey contains the simulator public key and its workspace path.
 type PublicKey struct {
 	Path string `json:"path"`
 	PEM  string `json:"pem"`
 }
 
+// KeyInfo describes the active key pair without exposing private material.
 type KeyInfo struct {
 	Path               string    `json:"path"`
 	Algorithm          string    `json:"algorithm"`

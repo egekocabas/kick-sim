@@ -10,6 +10,7 @@ import (
 //go:embed dist
 var embedded embed.FS
 
+// Assets returns the embedded Studio build and reports that it is available.
 func Assets() (fs.FS, bool) {
 	assets, err := fs.Sub(embedded, "dist")
 	if err != nil {

@@ -11,8 +11,10 @@ import (
 	"github.com/egekocabas/kick-sim/internal/workflow"
 )
 
+// FormatVersion is the only suite format understood by this release.
 const FormatVersion = 1
 
+// Suite defines a group of scenarios and aggregate pass thresholds.
 type Suite struct {
 	Version     int        `yaml:"version" json:"version"`
 	Name        string     `yaml:"name" json:"name"`
@@ -21,23 +23,27 @@ type Suite struct {
 	Cases       []Case     `yaml:"cases" json:"cases"`
 }
 
+// Thresholds defines the aggregate failure limits for a suite.
 type Thresholds struct {
 	MaxFailures      int     `yaml:"maxFailures,omitempty" json:"maxFailures"`
 	MinPassedPercent float64 `yaml:"minPassedPercent,omitempty" json:"minPassedPercent,omitempty"`
 }
 
+// Case references one scenario and its delivery expectations.
 type Case struct {
 	Name     string      `yaml:"name,omitempty" json:"name,omitempty"`
 	Scenario string      `yaml:"scenario" json:"scenario"`
 	Expect   Expectation `yaml:"expect" json:"expect"`
 }
 
+// Expectation defines the delivery count, identity reuse, and accepted statuses for a case.
 type Expectation struct {
 	Deliveries    int   `yaml:"deliveries,omitempty" json:"deliveries,omitempty"`
 	SameMessageID bool  `yaml:"sameMessageId,omitempty" json:"sameMessageId,omitempty"`
 	Statuses      []int `yaml:"statuses" json:"statuses"`
 }
 
+// RunOptions contains runtime overrides shared by every suite case.
 type RunOptions struct {
 	Destination    string
 	DestinationURL string
@@ -45,6 +51,7 @@ type RunOptions struct {
 	SkipWait       bool
 }
 
+// SuiteResult summarizes case outcomes and aggregate threshold evaluation.
 type SuiteResult struct {
 	SuiteID       string       `json:"suiteId"`
 	Name          string       `json:"name"`
@@ -58,6 +65,7 @@ type SuiteResult struct {
 	Thresholds    Thresholds   `json:"thresholds"`
 }
 
+// CaseResult records one suite case and its workflow report.
 type CaseResult struct {
 	Index      int                     `json:"index"`
 	Name       string                  `json:"name"`
@@ -67,6 +75,7 @@ type CaseResult struct {
 	Error      string                  `json:"error,omitempty"`
 }
 
+// Validate checks suite structure, thresholds, and all referenced scenarios.
 func (value Suite) Validate(scenarios *scenario.Store) error {
 	var problems []error
 	if value.Version != FormatVersion {
@@ -105,6 +114,7 @@ func (value Suite) Validate(scenarios *scenario.Store) error {
 	return errors.Join(problems...)
 }
 
+// Run executes every suite case and evaluates the configured aggregate thresholds.
 func Run(ctx context.Context, service *app.Service, scenarios *scenario.Store, entry Entry, options RunOptions) (SuiteResult, error) {
 	startedAt := options.Start.UTC()
 	if startedAt.IsZero() {

@@ -10,6 +10,7 @@ import (
 	"github.com/egekocabas/kick-sim/internal/scenario"
 )
 
+// Options contains runtime overrides for a scenario workflow.
 type Options struct {
 	Destination      string
 	DestinationURL   string
@@ -22,6 +23,7 @@ type Options struct {
 	ExpectedStatuses []int
 }
 
+// WorkflowResult summarizes every delivery performed for a scenario.
 type WorkflowResult struct {
 	ScenarioID string     `json:"scenarioId"`
 	Name       string     `json:"name"`
@@ -33,12 +35,15 @@ type WorkflowResult struct {
 	Error      string     `json:"error,omitempty"`
 }
 
+// Delivery identifies one workflow step iteration and its transport result.
 type Delivery struct {
 	Step      int           `json:"step"`
 	Iteration int           `json:"iteration"`
 	Result    app.RunResult `json:"result"`
 }
 
+// Run executes either a single-delivery or timeline scenario and returns the
+// partial report alongside any generation or delivery error.
 func Run(ctx context.Context, service *app.Service, entry scenario.Entry, options Options) (WorkflowResult, error) {
 	start := options.Start.UTC()
 	if start.IsZero() {

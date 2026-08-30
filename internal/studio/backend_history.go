@@ -9,6 +9,7 @@ import (
 	"github.com/egekocabas/kick-sim/internal/signing"
 )
 
+// ListActivity returns a page of retained delivery summaries.
 func (backend *Backend) ListActivity(ctx context.Context, limit, offset int) ([]history.Activity, error) {
 	store, err := backend.service.History()
 	if err != nil {
@@ -18,6 +19,7 @@ func (backend *Backend) ListActivity(ctx context.Context, limit, offset int) ([]
 	return store.ListActivity(ctx, limit, offset)
 }
 
+// GetAttempt returns one retained delivery and reconstructs its signing input.
 func (backend *Backend) GetAttempt(ctx context.Context, id string) (kickopenapi.DeliveryAttemptDetail, error) {
 	store, err := backend.service.History()
 	if err != nil {
@@ -36,11 +38,13 @@ func (backend *Backend) GetAttempt(ctx context.Context, id string) (kickopenapi.
 	}, nil
 }
 
+// ReplayAttempt redelivers a retained attempt in exact or regenerated mode.
 func (backend *Backend) ReplayAttempt(ctx context.Context, id, mode string) (kickopenapi.DeliveryResult, error) {
 	result, err := backend.service.Replay(ctx, id, mode)
 	return deliveryDTO(result), retainDeliveryResult(result, err)
 }
 
+// DeleteRun removes a retained run and its related events and attempts.
 func (backend *Backend) DeleteRun(ctx context.Context, id string) error {
 	store, err := backend.service.History()
 	if err != nil {

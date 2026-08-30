@@ -15,6 +15,7 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// Entry combines a parsed scenario with its source identity and validation state.
 type Entry struct {
 	ID               string   `json:"id"`
 	BuiltIn          bool     `json:"builtIn"`
@@ -28,25 +29,31 @@ type Entry struct {
 	validationError  error
 }
 
+// RevisionConflictError reports an optimistic-concurrency failure while saving a scenario.
 type RevisionConflictError struct {
 	Expected string
 	Actual   string
 }
 
+// Error describes the expected and current source revisions.
 func (problem *RevisionConflictError) Error() string {
 	return fmt.Sprintf("scenario changed on disk: expected revision %s, found %s", problem.Expected, problem.Actual)
 }
 
+// HTTPStatus maps revision conflicts to the HTTP conflict status.
 func (problem *RevisionConflictError) HTTPStatus() int { return 409 }
 
+// SourceValidationError contains user-correctable problems in submitted scenario source.
 type SourceValidationError struct {
 	Problems []string
 }
 
+// Error joins the individual source-validation problems for display.
 func (problem *SourceValidationError) Error() string {
 	return "scenario source is invalid: " + strings.Join(problem.Problems, "; ")
 }
 
+// Store loads built-in and workspace scenarios against a fixed configuration snapshot.
 type Store struct {
 	workspaceRoot string
 	registry      *events.Registry
@@ -54,6 +61,7 @@ type Store struct {
 	actors        *actors.Registry
 }
 
+// NewStore constructs a scenario store with defensive configuration ownership.
 func NewStore(workspaceRoot string, registry *events.Registry, configuration config.Config, actorRegistries ...*actors.Registry) *Store {
 	actorRegistry := actors.Empty()
 	if len(actorRegistries) > 0 && actorRegistries[0] != nil {
@@ -62,6 +70,7 @@ func NewStore(workspaceRoot string, registry *events.Registry, configuration con
 	return &Store{workspaceRoot: workspaceRoot, registry: registry, configuration: config.Clone(configuration), actors: actorRegistry}
 }
 
+// List returns built-in and custom scenarios in stable identifier order.
 func (store *Store) List() ([]Entry, error) {
 	builtIns, err := store.builtIns()
 	if err != nil {
@@ -76,6 +85,7 @@ func (store *Store) List() ([]Entry, error) {
 	return entries, nil
 }
 
+// Get resolves a built-in or workspace scenario by identifier.
 func (store *Store) Get(id string) (Entry, error) {
 	if strings.HasPrefix(id, "builtin:") {
 		return store.getBuiltIn(strings.TrimPrefix(id, "builtin:"))
@@ -83,10 +93,12 @@ func (store *Store) Get(id string) (Entry, error) {
 	return store.getCustom(id)
 }
 
+// Copy creates a custom scenario from an existing scenario's complete source.
 func (store *Store) Copy(sourceID, targetID, createdWith string) (Entry, error) {
 	return store.SaveAsCopy(sourceID, targetID, nil, createdWith)
 }
 
+// SaveAsCopy creates a custom scenario and optionally replaces a single-request payload.
 func (store *Store) SaveAsCopy(sourceID, targetID string, payload map[string]any, createdWith string) (Entry, error) {
 	if strings.HasPrefix(targetID, "builtin:") {
 		return Entry{}, errors.New("custom scenario ID cannot use the reserved builtin: prefix")
@@ -129,6 +141,7 @@ func (store *Store) SaveAsCopy(sourceID, targetID string, payload map[string]any
 	return newEntry(targetID, false, targetPath, value, data, 1), nil
 }
 
+// SaveSource validates and atomically replaces a custom scenario when its revision matches.
 func (store *Store) SaveSource(id, expectedRevision string, source []byte) (Entry, error) {
 	if strings.HasPrefix(id, "builtin:") {
 		return Entry{}, errors.New("built-in scenarios are read-only")
@@ -160,6 +173,7 @@ func (store *Store) SaveSource(id, expectedRevision string, source []byte) (Entr
 	return newEntry(id, false, entry.Path, value, source, entry.SourceVersion), nil
 }
 
+// SaveSourceAsCopy validates submitted source and saves it under a new custom identifier.
 func (store *Store) SaveSourceAsCopy(sourceID, targetID string, source []byte, createdWith string) (Entry, error) {
 	if strings.HasPrefix(targetID, "builtin:") {
 		return Entry{}, errors.New("custom scenario ID cannot use the reserved builtin: prefix")
@@ -189,6 +203,7 @@ func (store *Store) SaveSourceAsCopy(sourceID, targetID string, source []byte, c
 	return newEntry(targetID, false, targetPath, value, data, 1), nil
 }
 
+// Validate returns any load-time validation failure or validates the parsed scenario.
 func (store *Store) Validate(entry Entry) error {
 	if entry.validationError != nil {
 		return entry.validationError

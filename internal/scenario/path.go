@@ -11,6 +11,7 @@ import (
 
 var scenarioSegment = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
+// ValidateID accepts slash-separated lowercase scenario identifiers without traversal segments.
 func ValidateID(id string) error {
 	if id == "" || strings.Contains(id, "\\") || filepath.IsAbs(id) || filepath.VolumeName(id) != "" {
 		return fmt.Errorf("invalid scenario ID %q", id)

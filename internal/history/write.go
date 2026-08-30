@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// Save atomically persists a run, generated event, and delivery attempt before
+// applying the configured retention policy.
 func (store *Store) Save(ctx context.Context, record Record) error {
 	if !store.Enabled() {
 		return nil

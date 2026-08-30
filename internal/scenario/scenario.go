@@ -11,8 +11,10 @@ import (
 	"github.com/egekocabas/kick-sim/internal/events"
 )
 
+// FormatVersion is the only scenario format understood by this release.
 const FormatVersion = 1
 
+// Scenario describes either one webhook request or a timeline of events and waits.
 type Scenario struct {
 	Version     int               `yaml:"version" json:"version"`
 	Name        string            `yaml:"name" json:"name"`
@@ -24,11 +26,13 @@ type Scenario struct {
 	Steps       []Step            `yaml:"steps,omitempty" json:"steps,omitempty"`
 }
 
+// TimelineDefaults supplies delivery expectations inherited by timeline steps.
 type TimelineDefaults struct {
 	Destination string      `yaml:"destination,omitempty" json:"destination,omitempty"`
 	Expect      Expectation `yaml:"expect,omitempty" json:"expect,omitempty"`
 }
 
+// Step describes either a timed wait or one repeatable event delivery.
 type Step struct {
 	Event    string            `yaml:"event,omitempty" json:"event,omitempty"`
 	Version  int               `yaml:"version,omitempty" json:"version,omitempty"`
@@ -41,12 +45,14 @@ type Step struct {
 	Delivery Delivery          `yaml:"delivery,omitempty" json:"delivery,omitempty"`
 }
 
+// Metadata records the provenance of a copied scenario.
 type Metadata struct {
 	Source        string `yaml:"source,omitempty" json:"source,omitempty"`
 	SourceVersion int    `yaml:"sourceVersion,omitempty" json:"sourceVersion,omitempty"`
 	CreatedWith   string `yaml:"createdWith,omitempty" json:"createdWith,omitempty"`
 }
 
+// Request describes the event and delivery behavior of a single scenario.
 type Request struct {
 	Event    Event          `yaml:"event" json:"event"`
 	Payload  map[string]any `yaml:"payload" json:"payload"`
@@ -54,11 +60,13 @@ type Request struct {
 	Delivery Delivery       `yaml:"delivery" json:"delivery"`
 }
 
+// Event identifies a versioned event contract.
 type Event struct {
 	Type    string `yaml:"type" json:"type"`
 	Version int    `yaml:"version" json:"version"`
 }
 
+// Delivery configures destination, fault injection, retries, and expectations.
 type Delivery struct {
 	Mode           string      `yaml:"mode" json:"mode"`
 	Destination    string      `yaml:"destination" json:"destination"`
@@ -69,10 +77,12 @@ type Delivery struct {
 	Expect         Expectation `yaml:"expect" json:"expect"`
 }
 
+// Expectation lists the HTTP response statuses accepted by a delivery.
 type Expectation struct {
 	Statuses []int `yaml:"statuses" json:"statuses"`
 }
 
+// Validate reports all detectable structural, contract, actor, and delivery errors.
 func (value Scenario) Validate(registry *events.Registry, configuration config.Config, actorRegistries ...*actors.Registry) error {
 	var problems []error
 	if value.Version != FormatVersion {
@@ -141,6 +151,7 @@ func validateDeliveryControls(delivery Delivery) error {
 	}
 }
 
+// Kind reports whether the scenario is single-request or timeline based.
 func (value Scenario) Kind() string {
 	if len(value.Steps) > 0 {
 		return "timeline"
@@ -240,10 +251,12 @@ func mergeBindings(base, override map[string]string) map[string]string {
 	return result
 }
 
+// StepActors overlays a timeline step's actor bindings on the scenario defaults.
 func (value Scenario) StepActors(step Step) map[string]string {
 	return mergeBindings(value.Actors, step.Actors)
 }
 
+// Compose builds a single-request payload and applies its omit pointers.
 func (value Scenario) Compose(definition events.Definition, defaults config.Defaults, actorRegistries ...*actors.Registry) (map[string]any, error) {
 	actorRegistry := actorRegistryFrom(actorRegistries)
 	payload, err := events.ComposeWithActors(definition, defaults, actorRegistry, value.Actors, value.Request.Payload)
@@ -264,6 +277,7 @@ func (value Scenario) Compose(definition events.Definition, defaults config.Defa
 	return payload, nil
 }
 
+// ValidateTemplates recursively rejects template expressions the simulator cannot resolve.
 func ValidateTemplates(value any) error {
 	switch typed := value.(type) {
 	case map[string]any:

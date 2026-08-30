@@ -26,6 +26,7 @@ const (
 	maxResponseBody = 64 * 1024
 )
 
+// Metadata contains the Kick webhook headers attached to a delivery.
 type Metadata struct {
 	MessageID      string
 	SubscriptionID string
@@ -36,6 +37,7 @@ type Metadata struct {
 	OmitSignature  bool
 }
 
+// Result captures the observable HTTP response and delivery timing.
 type Result struct {
 	StatusCode    int
 	Headers       http.Header
@@ -45,6 +47,7 @@ type Result struct {
 	BodyTruncated bool
 }
 
+// Send posts one simulated webhook after enforcing the loopback destination policy.
 func Send(ctx context.Context, client *http.Client, destination string, metadata Metadata, body []byte) (Result, error) {
 	if err := loopback.ValidateURL(destination); err != nil {
 		return Result{}, err
@@ -90,6 +93,8 @@ func Send(ctx context.Context, client *http.Client, destination string, metadata
 	return result, nil
 }
 
+// NewLoopbackClient returns an HTTP client that disables proxies and redirects
+// and verifies every resolved destination address is loopback before dialing.
 func NewLoopbackClient(timeout time.Duration) *http.Client {
 	return newLoopbackClient(timeout, net.DefaultResolver, &net.Dialer{})
 }
@@ -117,6 +122,8 @@ func newLoopbackClient(timeout time.Duration, resolver addressResolver, dialer c
 		if len(addresses) == 0 {
 			return nil, errors.New("destination host resolved to no addresses")
 		}
+		// Reject the entire DNS answer if any address escapes loopback. This avoids
+		// address-order-dependent behavior and DNS rebinding through mixed answers.
 		for _, address := range addresses {
 			if !address.IsLoopback() {
 				return nil, fmt.Errorf("destination host resolved outside loopback: %s", address)

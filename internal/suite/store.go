@@ -18,6 +18,7 @@ import (
 
 var idSegment = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
+// Entry combines a parsed suite with its source identity.
 type Entry struct {
 	ID      string `json:"id"`
 	BuiltIn bool   `json:"builtIn"`
@@ -26,15 +27,18 @@ type Entry struct {
 	Source  []byte `json:"-"`
 }
 
+// Store loads built-in and workspace suites and validates their scenarios.
 type Store struct {
 	workspaceRoot string
 	scenarios     *scenario.Store
 }
 
+// NewStore constructs a suite store for a workspace and scenario catalog.
 func NewStore(workspaceRoot string, scenarios *scenario.Store) *Store {
 	return &Store{workspaceRoot: workspaceRoot, scenarios: scenarios}
 }
 
+// List returns built-in and custom suites in stable identifier order.
 func (store *Store) List() ([]Entry, error) {
 	entries, err := store.builtIns()
 	if err != nil {
@@ -49,6 +53,7 @@ func (store *Store) List() ([]Entry, error) {
 	return entries, nil
 }
 
+// Get resolves a built-in or workspace suite by identifier.
 func (store *Store) Get(id string) (Entry, error) {
 	if strings.HasPrefix(id, "builtin:") {
 		return store.getBuiltIn(strings.TrimPrefix(id, "builtin:"))
@@ -116,6 +121,7 @@ func (store *Store) getCustom(id string) (Entry, error) {
 	return Entry{ID: id, Path: matches[0], Suite: value, Source: data}, nil
 }
 
+// Validate checks a suite and all scenarios it references.
 func (store *Store) Validate(entry Entry) error { return entry.Suite.Validate(store.scenarios) }
 
 func (store *Store) builtIns() ([]Entry, error) {

@@ -14,6 +14,7 @@ import (
 	"github.com/egekocabas/kick-sim/internal/signing"
 )
 
+// EnvironmentVariable names the optional explicit workspace override.
 const EnvironmentVariable = "KICK_SIM_WORKSPACE"
 
 var keyFiles sync.RWMutex
@@ -37,6 +38,7 @@ users:
     is_verified: false
 `
 
+// Paths contains the canonical files and directories within a workspace.
 type Paths struct {
 	Root       string
 	Config     string
@@ -51,12 +53,14 @@ type Paths struct {
 	GitIgnore  string
 }
 
+// ResolveOptions controls explicit, discovered, and initialization-time workspace resolution.
 type ResolveOptions struct {
 	Explicit   string
 	Start      string
 	Initialize bool
 }
 
+// PathsFor derives all standard workspace paths from root.
 func PathsFor(root string) Paths {
 	keysDirectory := filepath.Join(root, "keys")
 	dataDirectory := filepath.Join(root, "data")
@@ -75,6 +79,8 @@ func PathsFor(root string) Paths {
 	}
 }
 
+// Resolve finds a workspace using an explicit path, the environment override,
+// or an upward search from Start, in that order.
 func Resolve(options ResolveOptions) (string, error) {
 	start := options.Start
 	if start == "" {
@@ -114,6 +120,7 @@ func Resolve(options ResolveOptions) (string, error) {
 	return "", errors.New("no .kick-sim workspace found; run kick-sim init or use --workspace")
 }
 
+// Init creates a complete workspace without overwriting existing workspace files.
 func Init(root string) (Paths, error) {
 	paths := PathsFor(root)
 	for _, path := range []string{paths.Config, paths.Users, paths.PrivateKey, paths.PublicKey} {
@@ -155,6 +162,7 @@ func Init(root string) (Paths, error) {
 	return paths, nil
 }
 
+// InitKeys creates a new key pair without overwriting either existing key.
 func InitKeys(root string) error {
 	keyFiles.Lock()
 	defer keyFiles.Unlock()
@@ -169,6 +177,8 @@ func InitKeys(root string) error {
 	return writeNewKeyPair(paths, false)
 }
 
+// RotateKeys atomically replaces a valid workspace key pair and rolls back both
+// files if installation or verification fails.
 func RotateKeys(root string) error {
 	keyFiles.Lock()
 	defer keyFiles.Unlock()
@@ -186,6 +196,7 @@ func RotateKeys(root string) error {
 	return writeNewKeyPair(paths, true)
 }
 
+// Validate checks the workspace configuration and confirms its key pair matches.
 func Validate(root string) error {
 	paths := PathsFor(root)
 	configuration, err := config.Load(paths.Config)

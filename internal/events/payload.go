@@ -13,6 +13,8 @@ import (
 
 var actorOwnedFields = []string{"user_id", "username", "channel_slug", "is_verified", "profile_picture"}
 
+// ComposeWithActors merges contract defaults, workspace defaults, actor
+// bindings, and scenario values in increasing precedence order.
 func ComposeWithActors(definition Definition, workspaceDefaults config.Defaults, registry *actors.Registry, bindings map[string]string, scenarioPayload map[string]any) (map[string]any, error) {
 	payload := DeepCopyMap(definition.Defaults)
 	for role, roleDefinition := range definition.ActorRoles {
@@ -43,6 +45,8 @@ func ComposeWithActors(definition Definition, workspaceDefaults config.Defaults,
 	return payload, nil
 }
 
+// ValidateActorOwned verifies that pointer overrides did not change fields
+// controlled by an actor binding.
 func ValidateActorOwned(definition Definition, registry *actors.Registry, bindings map[string]string, payload map[string]any) error {
 	for role, actorID := range bindings {
 		if _, supported := definition.ActorRoles[role]; !supported {
@@ -68,6 +72,8 @@ func ValidateActorOwned(definition Definition, registry *actors.Registry, bindin
 	return nil
 }
 
+// ResolveDynamic recursively replaces supported template markers with values
+// from the supplied ID generator and logical clock.
 func ResolveDynamic(value any, newID func() string, now time.Time) any {
 	switch typed := value.(type) {
 	case map[string]any:
@@ -102,6 +108,8 @@ func ResolveDynamic(value any, newID func() string, now time.Time) any {
 	}
 }
 
+// DeepMerge recursively overlays source onto destination without retaining
+// mutable maps or slices from source.
 func DeepMerge(destination, source map[string]any) {
 	for key, sourceValue := range source {
 		sourceObject, sourceIsObject := toStringMap(sourceValue)
@@ -115,6 +123,7 @@ func DeepMerge(destination, source map[string]any) {
 	}
 }
 
+// DeepCopyMap returns a recursively independent copy of a JSON-like object.
 func DeepCopyMap(value map[string]any) map[string]any {
 	if value == nil {
 		return map[string]any{}
@@ -126,10 +135,12 @@ func DeepCopyMap(value map[string]any) map[string]any {
 	return copy
 }
 
+// Equal reports whether two JSON-like values are deeply equal.
 func Equal(left, right any) bool {
 	return reflect.DeepEqual(left, right)
 }
 
+// Marshal serializes a payload as compact or indented JSON.
 func Marshal(payload map[string]any, pretty bool) ([]byte, error) {
 	var (
 		data []byte
