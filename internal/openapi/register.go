@@ -11,6 +11,7 @@ import (
 	"github.com/egekocabas/kick-sim/internal/workflow"
 )
 
+// Register attaches every Studio operation to api.
 func Register(api huma.API, backend Backend) {
 	register[struct{}, Bootstrap](api, http.MethodGet, "/api/bootstrap", "getBootstrap", "Get Studio bootstrap data", func(ctx context.Context, _ *struct{}) (Bootstrap, error) {
 		return backend.Bootstrap(ctx)
@@ -101,46 +102,72 @@ func Register(api huma.API, backend Backend) {
 	})
 }
 
+// ValidResponse acknowledges successful validation.
 type ValidResponse struct {
 	Valid bool `json:"valid"`
 }
+
+// CapabilitiesResponse advertises supported API features.
 type CapabilitiesResponse struct {
 	APIVersion   int      `json:"apiVersion"`
 	Capabilities []string `json:"capabilities"`
 }
+
+// EventsResponse wraps the event-contract collection.
 type EventsResponse struct {
 	Items []EventContract `json:"items"`
 }
+
+// ScenariosResponse wraps the scenario collection.
 type ScenariosResponse struct {
 	Items []ScenarioSummary `json:"items"`
 }
+
+// ActorsResponse wraps reusable actors by identifier.
 type ActorsResponse struct {
 	Items map[string]actors.User `json:"items"`
 }
+
+// SuitesResponse wraps the suite collection.
 type SuitesResponse struct {
 	Items []SuiteSummary `json:"items"`
 }
+
+// ActivityResponse wraps a page of retained activity.
 type ActivityResponse struct {
 	Items []history.Activity `json:"items"`
 }
+
+// EmptyResponse represents a successful operation with no response fields.
 type EmptyResponse struct{}
 
+// EventInput captures an event identifier from route parameters.
 type EventInput struct {
 	Type    string `path:"type"`
 	Version int    `path:"version" minimum:"1"`
 }
+
+// ScenarioInput captures a scenario identifier from the query string.
 type ScenarioInput struct {
 	ID string `query:"id" minLength:"1"`
 }
+
+// SuiteInput captures a suite identifier from the query string.
 type SuiteInput struct {
 	ID string `query:"id" minLength:"1"`
 }
+
+// AttemptInput captures a delivery-attempt identifier from the route.
 type AttemptInput struct {
 	ID string `path:"id" minLength:"26" maxLength:"26"`
 }
+
+// RunInput captures a run identifier from the route.
 type RunInput struct {
 	ID string `path:"id" minLength:"26" maxLength:"26"`
 }
+
+// ActivityInput contains pagination controls for retained activity.
 type ActivityInput struct {
 	Limit  int `query:"limit" minimum:"1" maximum:"100" default:"50"`
 	Offset int `query:"offset" minimum:"0" default:"0"`

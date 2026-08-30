@@ -1,6 +1,7 @@
 const semverPattern =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
+/** Parses a strict semantic version into numeric and prerelease components. */
 export function parseSemver(version) {
   const match = semverPattern.exec(version);
   if (!match) {
@@ -14,10 +15,12 @@ export function parseSemver(version) {
   };
 }
 
+/** Reports whether a strict semantic version includes prerelease identifiers. */
 export function isPrerelease(version) {
   return parseSemver(version).prerelease.length > 0;
 }
 
+/** Compares two strict semantic versions using SemVer precedence rules. */
 export function compareSemver(leftVersion, rightVersion) {
   const left = parseSemver(leftVersion);
   const right = parseSemver(rightVersion);

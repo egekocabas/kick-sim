@@ -12,6 +12,7 @@ import (
 	"github.com/egekocabas/kick-sim/assets"
 )
 
+// Metadata records upstream provenance and the supported event-contract surface.
 type Metadata struct {
 	Upstream         Upstream         `json:"upstream"`
 	SupportedEvents  map[string][]int `json:"supportedEvents"`
@@ -19,6 +20,7 @@ type Metadata struct {
 	BundleDigest     string           `json:"eventSchemaBundleDigest"`
 }
 
+// Upstream identifies the source material used for compatibility research.
 type Upstream struct {
 	Repository  string   `json:"repository"`
 	Commit      string   `json:"commit"`
@@ -26,6 +28,7 @@ type Upstream struct {
 	Documents   []string `json:"documents"`
 }
 
+// Load validates bundled compatibility metadata and computes its schema-bundle digest.
 func Load() (Metadata, error) {
 	data, err := assets.Files.ReadFile("compatibility/metadata.json")
 	if err != nil {

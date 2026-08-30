@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// ListActivity returns a newest-first page of retained delivery summaries.
 func (store *Store) ListActivity(ctx context.Context, limit, offset int) ([]Activity, error) {
 	if !store.Enabled() {
 		return []Activity{}, nil
@@ -53,6 +54,7 @@ func (store *Store) ListActivity(ctx context.Context, limit, offset int) ([]Acti
 	return activities, nil
 }
 
+// GetAttempt reconstructs a delivery attempt together with its event and run.
 func (store *Store) GetAttempt(ctx context.Context, id string) (AttemptDetail, error) {
 	if !store.Enabled() {
 		return AttemptDetail{}, errors.New("history is disabled or empty")
@@ -124,6 +126,7 @@ func (store *Store) GetAttempt(ctx context.Context, id string) (AttemptDetail, e
 	return detail, nil
 }
 
+// DeleteRun removes a run and its related events and attempts through cascading deletes.
 func (store *Store) DeleteRun(ctx context.Context, id string) error {
 	if !store.Enabled() {
 		return errors.New("history is disabled or empty")

@@ -20,10 +20,12 @@ const (
 	ModerationBannedType   = "moderation.banned"
 )
 
+// ActorRole describes the workspace default used to populate an event role.
 type ActorRole struct {
 	DefaultSource string `json:"defaultSource,omitempty"`
 }
 
+// Definition contains an event contract and its compiled payload validator.
 type Definition struct {
 	Type        string               `json:"type"`
 	Version     int                  `json:"version"`
@@ -34,10 +36,12 @@ type Definition struct {
 	validator   *jsonschema.Schema
 }
 
+// Registry stores the event contracts bundled with the simulator.
 type Registry struct {
 	definitions map[string]Definition
 }
 
+// NewRegistry loads and compiles all bundled event schemas and defaults.
 func NewRegistry() (*Registry, error) {
 	specifications := []struct {
 		typeName, description string
@@ -83,6 +87,7 @@ func NewRegistry() (*Registry, error) {
 	return &Registry{definitions: definitions}, nil
 }
 
+// List returns public contract metadata in stable type and version order.
 func (registry *Registry) List() []Definition {
 	definitions := make([]Definition, 0, len(registry.definitions))
 	for _, definition := range registry.definitions {
@@ -100,6 +105,7 @@ func (registry *Registry) List() []Definition {
 	return definitions
 }
 
+// Get returns a defensive copy of the requested event definition.
 func (registry *Registry) Get(eventType string, version int) (Definition, error) {
 	definition, ok := registry.definitions[key(eventType, version)]
 	if !ok {
@@ -119,6 +125,7 @@ func cloneRoles(value map[string]ActorRole) map[string]ActorRole {
 	return result
 }
 
+// Validate checks a decoded payload against the requested event schema.
 func (registry *Registry) Validate(eventType string, version int, payload any) error {
 	definition, err := registry.Get(eventType, version)
 	if err != nil {
@@ -130,6 +137,8 @@ func (registry *Registry) Validate(eventType string, version int, payload any) e
 	return nil
 }
 
+// ValidateJSON decodes exactly one JSON object and validates it against the
+// requested event schema while preserving JSON number precision.
 func (registry *Registry) ValidateJSON(eventType string, version int, raw []byte) (map[string]any, error) {
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()

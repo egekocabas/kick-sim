@@ -8,6 +8,7 @@ import (
 	"syscall"
 )
 
+// ValidatePrivateKeyPermissions requires current-user ownership and denies all group and other access.
 func ValidatePrivateKeyPermissions(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -23,4 +24,5 @@ func ValidatePrivateKeyPermissions(path string) error {
 	return nil
 }
 
+// PrivateKeyProtectionWarning returns no warning because Unix permissions are verified directly.
 func PrivateKeyProtectionWarning() string { return "" }

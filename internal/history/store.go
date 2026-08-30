@@ -16,6 +16,7 @@ import (
 
 const schemaVersion = 1
 
+// Store owns the SQLite connection and retention settings for delivery history.
 type Store struct {
 	db       *sql.DB
 	path     string
@@ -36,6 +37,7 @@ func OpenExisting(path string, settings config.History) (*Store, error) {
 	return Open(path, settings)
 }
 
+// Open creates or opens a history database and prepares its schema.
 func Open(path string, settings config.History) (*Store, error) {
 	if !settings.Enabled {
 		return &Store{path: path, settings: settings}, nil
@@ -78,6 +80,7 @@ func Open(path string, settings config.History) (*Store, error) {
 	return store, nil
 }
 
+// Close releases the database connection; it is safe for disabled stores.
 func (store *Store) Close() error {
 	if store == nil || store.db == nil {
 		return nil
@@ -85,6 +88,7 @@ func (store *Store) Close() error {
 	return store.db.Close()
 }
 
+// Enabled reports whether the store has an active history database.
 func (store *Store) Enabled() bool {
 	return store != nil && store.db != nil && store.settings.Enabled
 }

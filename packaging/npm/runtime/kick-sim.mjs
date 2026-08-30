@@ -15,10 +15,12 @@ const packages = Object.freeze({
   "win32-x64": ["kick-sim-win32-x64", "kick-sim.exe"],
 });
 
+/** Resolves a Node target to its optional package and executable name. */
 export function packageForPlatform(platform, arch) {
   return packages[`${platform}-${arch}`];
 }
 
+/** Resolves the installed native binary for a supported Node target. */
 export function resolveBinary(platform = process.platform, arch = process.arch) {
   const target = packageForPlatform(platform, arch);
   if (!target) {
@@ -41,6 +43,7 @@ export function resolveBinary(platform = process.platform, arch = process.arch) 
   }
 }
 
+/** Runs the native binary and forwards termination signals and its exit status. */
 export function run(args = process.argv.slice(2)) {
   let binary;
   try {

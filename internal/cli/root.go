@@ -26,7 +26,10 @@ type exitError struct {
 	err  error
 }
 
+// Error returns the underlying user-facing error message.
 func (err *exitError) Error() string { return err.err.Error() }
+
+// Unwrap exposes the underlying error for standard error inspection.
 func (err *exitError) Unwrap() error { return err.err }
 
 type environment struct {
@@ -38,6 +41,7 @@ type environment struct {
 	start         string
 }
 
+// Execute runs the CLI with process-standard streams and returns its exit code.
 func Execute() int {
 	command := NewRootCommand(os.Stdout, os.Stderr)
 	if err := command.Execute(); err != nil {
@@ -47,6 +51,7 @@ func Execute() int {
 	return 0
 }
 
+// NewRootCommand constructs the CLI command tree using caller-supplied streams.
 func NewRootCommand(stdout, stderr io.Writer) *cobra.Command {
 	environment := &environment{stdout: stdout, stderr: stderr}
 	root := &cobra.Command{

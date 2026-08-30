@@ -19,17 +19,20 @@ var capabilities = []string{
 	"studio.replay.exact", "studio.replay.regenerated", "studio.openapi",
 }
 
+// Backend adapts simulator services to the Studio API contract.
 type Backend struct {
 	service   *app.Service
 	scenarios *scenario.Store
 	suites    *suite.Store
 }
 
+// NewBackend constructs a Studio backend for service.
 func NewBackend(service *app.Service) *Backend {
 	scenarios := scenario.NewStore(service.WorkspaceRoot(), service.EventRegistry(), service.Configuration(), service.ActorRegistry())
 	return &Backend{service: service, scenarios: scenarios, suites: suite.NewStore(service.WorkspaceRoot(), scenarios)}
 }
 
+// Bootstrap returns the initial workspace, key, capability, and activity state.
 func (backend *Backend) Bootstrap(ctx context.Context) (kickopenapi.Bootstrap, error) {
 	workspaceInfo, err := backend.Workspace(ctx)
 	if err != nil {
@@ -49,6 +52,7 @@ func (backend *Backend) Bootstrap(ctx context.Context) (kickopenapi.Bootstrap, e
 	}, nil
 }
 
+// Workspace returns the non-secret active workspace summary.
 func (backend *Backend) Workspace(context.Context) (kickopenapi.Workspace, error) {
 	configuration := backend.service.Configuration()
 	destination, err := configuration.Destination("")
@@ -62,6 +66,7 @@ func (backend *Backend) Workspace(context.Context) (kickopenapi.Workspace, error
 	}, nil
 }
 
+// ValidateWorkspace checks the active configuration and signing key pair.
 func (backend *Backend) ValidateWorkspace(context.Context) error {
 	return workspace.Validate(backend.service.WorkspaceRoot())
 }

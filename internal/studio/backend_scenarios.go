@@ -14,6 +14,7 @@ import (
 	"github.com/egekocabas/kick-sim/internal/workflow"
 )
 
+// ListScenarios returns summaries for built-in and custom scenarios.
 func (backend *Backend) ListScenarios(context.Context) ([]kickopenapi.ScenarioSummary, error) {
 	entries, err := backend.scenarios.List()
 	if err != nil {
@@ -26,6 +27,7 @@ func (backend *Backend) ListScenarios(context.Context) ([]kickopenapi.ScenarioSu
 	return items, nil
 }
 
+// GetScenario returns source and runtime defaults for one scenario.
 func (backend *Backend) GetScenario(_ context.Context, id string) (kickopenapi.ScenarioDetail, error) {
 	entry, err := backend.scenarios.Get(id)
 	if err != nil {
@@ -34,6 +36,7 @@ func (backend *Backend) GetScenario(_ context.Context, id string) (kickopenapi.S
 	return backend.scenarioDetail(entry)
 }
 
+// SaveScenarioCopy creates a custom working copy of an existing scenario.
 func (backend *Backend) SaveScenarioCopy(_ context.Context, request kickopenapi.ScenarioCopyRequest) (kickopenapi.ScenarioDetail, error) {
 	source, err := backend.scenarios.Get(request.SourceID)
 	if err != nil {
@@ -49,6 +52,7 @@ func (backend *Backend) SaveScenarioCopy(_ context.Context, request kickopenapi.
 	return backend.scenarioDetail(entry)
 }
 
+// SaveScenarioSource validates and conditionally replaces custom scenario source.
 func (backend *Backend) SaveScenarioSource(_ context.Context, request kickopenapi.ScenarioSourceSaveRequest) (kickopenapi.ScenarioDetail, error) {
 	entry, err := backend.scenarios.SaveSource(request.ID, request.Revision, []byte(request.Source))
 	if err != nil {
@@ -57,6 +61,7 @@ func (backend *Backend) SaveScenarioSource(_ context.Context, request kickopenap
 	return backend.scenarioDetail(entry)
 }
 
+// SaveScenarioSourceCopy validates edited source and stores it as a new scenario.
 func (backend *Backend) SaveScenarioSourceCopy(_ context.Context, request kickopenapi.ScenarioSourceCopyRequest) (kickopenapi.ScenarioDetail, error) {
 	entry, err := backend.scenarios.SaveSourceAsCopy(request.SourceID, request.TargetID, []byte(request.Source), "kick-sim@"+version.Version)
 	if err != nil {
@@ -65,6 +70,7 @@ func (backend *Backend) SaveScenarioSourceCopy(_ context.Context, request kickop
 	return backend.scenarioDetail(entry)
 }
 
+// RunScenario executes a single-request scenario with optional runtime overrides.
 func (backend *Backend) RunScenario(ctx context.Context, request kickopenapi.ScenarioRunRequest) (kickopenapi.DeliveryResult, error) {
 	entry, err := backend.scenarios.Get(request.ScenarioID)
 	if err != nil {
@@ -110,10 +116,12 @@ func (backend *Backend) RunScenario(ctx context.Context, request kickopenapi.Sce
 	return deliveryDTO(result), retainDeliveryResult(result, err)
 }
 
+// ListActors returns reusable actors from the active workspace.
 func (backend *Backend) ListActors(context.Context) (map[string]actors.User, error) {
 	return backend.service.ActorRegistry().List(), nil
 }
 
+// RunWorkflow executes a single-request or timeline scenario.
 func (backend *Backend) RunWorkflow(ctx context.Context, request kickopenapi.ScenarioRunRequest) (workflow.WorkflowResult, error) {
 	entry, err := backend.scenarios.Get(request.ScenarioID)
 	if err != nil {
@@ -128,6 +136,7 @@ func (backend *Backend) RunWorkflow(ctx context.Context, request kickopenapi.Sce
 	})
 }
 
+// ListSuites returns summaries for built-in and custom suites.
 func (backend *Backend) ListSuites(context.Context) ([]kickopenapi.SuiteSummary, error) {
 	entries, err := backend.suites.List()
 	if err != nil {
@@ -145,6 +154,7 @@ func (backend *Backend) ListSuites(context.Context) ([]kickopenapi.SuiteSummary,
 	return items, nil
 }
 
+// GetSuite returns one suite and its source.
 func (backend *Backend) GetSuite(_ context.Context, id string) (kickopenapi.SuiteDetail, error) {
 	entry, err := backend.suites.Get(id)
 	if err != nil {
@@ -158,6 +168,7 @@ func (backend *Backend) GetSuite(_ context.Context, id string) (kickopenapi.Suit
 	return kickopenapi.SuiteDetail{SuiteSummary: summary, Source: string(entry.Source)}, nil
 }
 
+// RunSuite executes every case and evaluates aggregate suite thresholds.
 func (backend *Backend) RunSuite(ctx context.Context, request kickopenapi.SuiteRunRequest) (suite.SuiteResult, error) {
 	entry, err := backend.suites.Get(request.SuiteID)
 	if err != nil {

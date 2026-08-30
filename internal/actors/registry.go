@@ -10,10 +10,12 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// FormatVersion is the only actor-registry version understood by this release.
 const FormatVersion = 1
 
 var actorID = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
+// User contains the event payload fields owned by a reusable actor.
 type User struct {
 	UserID         int64  `yaml:"user_id" json:"user_id"`
 	Username       string `yaml:"username" json:"username"`
@@ -22,17 +24,21 @@ type User struct {
 	ProfilePicture string `yaml:"profile_picture,omitempty" json:"profile_picture,omitempty"`
 }
 
+// File is the versioned on-disk representation of an actor registry.
 type File struct {
 	Version int             `yaml:"version"`
 	Users   map[string]User `yaml:"users"`
 }
 
+// Registry stores validated actors by their scenario-facing identifier.
 type Registry struct {
 	users map[string]User
 }
 
+// Empty returns a registry with no actors.
 func Empty() *Registry { return &Registry{users: map[string]User{}} }
 
+// Load strictly decodes and validates an actor registry, treating a missing file as empty.
 func Load(path string) (*Registry, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -67,6 +73,7 @@ func Load(path string) (*Registry, error) {
 	return &Registry{users: document.Users}, nil
 }
 
+// Get returns the actor registered under id.
 func (registry *Registry) Get(id string) (User, error) {
 	if registry == nil {
 		return User{}, fmt.Errorf("actor %q was not found", id)
@@ -78,6 +85,7 @@ func (registry *Registry) Get(id string) (User, error) {
 	return user, nil
 }
 
+// List returns a copy of all registered actors.
 func (registry *Registry) List() map[string]User {
 	result := make(map[string]User, len(registry.users))
 	for id, user := range registry.users {
@@ -86,6 +94,7 @@ func (registry *Registry) List() map[string]User {
 	return result
 }
 
+// IDs returns all actor identifiers in lexical order.
 func (registry *Registry) IDs() []string {
 	ids := make([]string, 0, len(registry.users))
 	for id := range registry.users {

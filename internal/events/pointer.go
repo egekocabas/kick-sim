@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+// SetPointer replaces an existing value addressed by an RFC 6901 JSON Pointer.
+// Simulator overrides are intentionally restricted to descendants of /payload.
 func SetPointer(document map[string]any, pointer string, value any) error {
 	parent, token, err := pointerParent(document, pointer)
 	if err != nil {
@@ -30,6 +32,8 @@ func SetPointer(document map[string]any, pointer string, value any) error {
 	return nil
 }
 
+// UnsetPointer removes an existing object field addressed by an RFC 6901 JSON
+// Pointer. Removing array elements is rejected to avoid implicit reindexing.
 func UnsetPointer(document map[string]any, pointer string) error {
 	parent, token, err := pointerParent(document, pointer)
 	if err != nil {

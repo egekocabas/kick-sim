@@ -28,12 +28,14 @@ const (
 	maxRequestBody = 2 << 20
 )
 
+// Options controls Studio's listener and browser-launch behavior.
 type Options struct {
 	Address     string
 	OpenBrowser bool
 	Output      io.Writer
 }
 
+// RunningServer contains the bound listener, browser URL, and HTTP handler.
 type RunningServer struct {
 	URL      string
 	Embedded bool
@@ -41,6 +43,7 @@ type RunningServer struct {
 	Handler  http.Handler
 }
 
+// Run serves Studio until the context is canceled or the server fails.
 func Run(ctx context.Context, service *app.Service, options Options) error {
 	address := options.Address
 	if address == "" {
@@ -98,6 +101,7 @@ func Run(ctx context.Context, service *app.Service, options Options) error {
 	}
 }
 
+// New binds a loopback listener and constructs a token-protected Studio server.
 func New(service *app.Service, address string) (RunningServer, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {

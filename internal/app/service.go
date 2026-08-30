@@ -27,6 +27,8 @@ type Service struct {
 	dependencies  dependencies
 }
 
+// PayloadOptions describes the event contract, scenario data, actors, and
+// pointer-based overrides used to compose a payload.
 type PayloadOptions struct {
 	EventType             string
 	EventVersion          int
@@ -41,6 +43,7 @@ type PayloadOptions struct {
 	ScenarioSourceVersion int
 }
 
+// Generated is an immutable snapshot of a signed event before delivery.
 type Generated struct {
 	RunID                 string            `json:"runId"`
 	GeneratedEventID      string            `json:"generatedEventId"`
@@ -60,6 +63,7 @@ type Generated struct {
 	body                  []byte
 }
 
+// RunResult combines a generated event with the outcome of one delivery attempt.
 type RunResult struct {
 	Generated
 	AttemptID          string              `json:"attemptId"`
@@ -79,6 +83,8 @@ type RunResult struct {
 	Error              string              `json:"error,omitempty"`
 }
 
+// Open loads a workspace and constructs a service from its configuration,
+// event contracts, and actor registry.
 func Open(workspaceRoot string) (*Service, error) {
 	configuration, err := config.Load(workspace.PathsFor(workspaceRoot).Config)
 	if err != nil {
@@ -114,14 +120,19 @@ func newService(workspaceRoot string, configuration config.Config, registry *eve
 	}
 }
 
+// WorkspaceRoot returns the workspace directory used by the service.
 func (service *Service) WorkspaceRoot() string { return service.workspaceRoot }
 
+// Configuration returns a defensive copy of the loaded workspace configuration.
 func (service *Service) Configuration() config.Config { return config.Clone(service.configuration) }
 
+// EventRegistry returns the service's immutable event-contract registry.
 func (service *Service) EventRegistry() *events.Registry { return service.events }
 
+// ActorRegistry returns the service's immutable actor registry.
 func (service *Service) ActorRegistry() *actors.Registry { return service.actors }
 
+// Now returns the service clock, which tests may replace with a deterministic clock.
 func (service *Service) Now() time.Time { return service.dependencies.now() }
 
 func (service *Service) newID() string { return service.dependencies.newID() }

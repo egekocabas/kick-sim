@@ -11,6 +11,7 @@ import (
 	"github.com/egekocabas/kick-sim/internal/workspace"
 )
 
+// PublicKey returns the active public key as PEM.
 func (backend *Backend) PublicKey(context.Context) (kickopenapi.PublicKey, error) {
 	path := config.ResolvePath(backend.service.WorkspaceRoot(), backend.service.Configuration().Signing.PublicKey)
 	data, err := workspace.ReadPublicKeyPEM(path)
@@ -20,6 +21,7 @@ func (backend *Backend) PublicKey(context.Context) (kickopenapi.PublicKey, error
 	return kickopenapi.PublicKey{Path: path, PEM: string(data)}, nil
 }
 
+// KeyInfo returns public metadata and private-key match status for the active pair.
 func (backend *Backend) KeyInfo(context.Context) (kickopenapi.KeyInfo, error) {
 	configuration := backend.service.Configuration()
 	publicPath := config.ResolvePath(backend.service.WorkspaceRoot(), configuration.Signing.PublicKey)
@@ -42,6 +44,7 @@ func (backend *Backend) KeyInfo(context.Context) (kickopenapi.KeyInfo, error) {
 	}, nil
 }
 
+// RotateKey atomically rotates the active pair and returns its new metadata.
 func (backend *Backend) RotateKey(ctx context.Context) (kickopenapi.KeyInfo, error) {
 	if err := workspace.RotateKeys(backend.service.WorkspaceRoot()); err != nil {
 		return kickopenapi.KeyInfo{}, err

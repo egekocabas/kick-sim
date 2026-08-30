@@ -12,10 +12,14 @@ import (
 	"github.com/egekocabas/kick-sim/internal/signing"
 )
 
+// Deliver sends a generated event and retains the attempt in workspace history.
+// When expectedStatuses is empty, any 2xx response is accepted.
 func (service *Service) Deliver(ctx context.Context, generated Generated, destinationName, temporaryURL string, expectedStatuses []int) (RunResult, error) {
 	return service.deliver(ctx, generated, destinationName, temporaryURL, expectedStatuses, "", "")
 }
 
+// ApplyDeliveryFailure returns an independent event copy with the requested
+// protocol fault injected for negative-path testing.
 func (service *Service) ApplyDeliveryFailure(generated Generated, failure string) (Generated, error) {
 	generated.Headers = cloneStringMap(generated.Headers)
 	generated.Payload = events.DeepCopyMap(generated.Payload)
@@ -77,6 +81,8 @@ func (service *Service) deliver(ctx context.Context, generated Generated, destin
 		EventType: generated.EventType, EventVersion: fmt.Sprint(generated.EventVersion),
 		OmitSignature: !hasHeader(generated.Headers, delivery.HeaderSignature),
 	}, generated.body)
+	// Build and retain a result even when transport or expectation checks fail,
+	// so failed deliveries remain inspectable and replayable.
 	run := RunResult{
 		Generated: generated, AttemptID: attemptID, ReplayOfID: replayOfID, ReplayMode: replayMode,
 		Destination: destinationName, URL: destination.URL, Method: http.MethodPost,

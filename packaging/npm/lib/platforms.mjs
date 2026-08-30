@@ -41,6 +41,7 @@ export const platforms = Object.freeze([
   },
 ]);
 
+/** Returns release metadata for a Node platform and architecture pair. */
 export function platformForNode(nodePlatform, nodeArch) {
   return platforms.find(
     (platform) =>
@@ -48,6 +49,7 @@ export function platformForNode(nodePlatform, nodeArch) {
   );
 }
 
+/** Returns release metadata for a Go operating-system and architecture pair. */
 export function platformForGo(goos, goarch) {
   return platforms.find(
     (platform) => platform.goos === goos && platform.goarch === goarch,

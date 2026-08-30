@@ -17,6 +17,8 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
+// GeneratePayload composes, resolves, and validates an event payload without
+// signing it or creating delivery metadata.
 func (service *Service) GeneratePayload(options PayloadOptions) (map[string]any, error) {
 	return service.generatePayloadAt(options, service.Now().UTC())
 }
@@ -90,10 +92,13 @@ func (service *Service) generatePayloadAt(options PayloadOptions, now time.Time)
 	return resolved, nil
 }
 
+// Generate composes and signs an event using the service clock.
 func (service *Service) Generate(options PayloadOptions, subscriptionOverride string) (Generated, error) {
 	return service.GenerateAt(options, subscriptionOverride, service.Now().UTC())
 }
 
+// GenerateAt composes and signs an event at a caller-supplied logical time.
+// The logical time drives both dynamic payload values and signature metadata.
 func (service *Service) GenerateAt(options PayloadOptions, subscriptionOverride string, logicalTime time.Time) (Generated, error) {
 	now := logicalTime.UTC()
 	payload, err := service.generatePayloadAt(options, now)

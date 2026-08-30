@@ -8,6 +8,7 @@ import (
 	kickopenapi "github.com/egekocabas/kick-sim/internal/openapi"
 )
 
+// ListEvents returns all event contracts available to Studio.
 func (backend *Backend) ListEvents(context.Context) ([]kickopenapi.EventContract, error) {
 	definitions := backend.service.EventRegistry().List()
 	items := make([]kickopenapi.EventContract, 0, len(definitions))
@@ -21,6 +22,7 @@ func (backend *Backend) ListEvents(context.Context) ([]kickopenapi.EventContract
 	return items, nil
 }
 
+// GetEvent returns one versioned event contract.
 func (backend *Backend) GetEvent(_ context.Context, eventType string, eventVersion int) (kickopenapi.EventContract, error) {
 	definition, err := backend.service.EventRegistry().Get(eventType, eventVersion)
 	if err != nil {
@@ -29,10 +31,12 @@ func (backend *Backend) GetEvent(_ context.Context, eventType string, eventVersi
 	return eventContract(definition), nil
 }
 
+// ValidatePayload checks a submitted payload against its event schema.
 func (backend *Backend) ValidatePayload(_ context.Context, request kickopenapi.EventPayloadRequest) error {
 	return backend.service.EventRegistry().Validate(request.EventType, request.EventVersion, request.Payload)
 }
 
+// GenerateEvent composes and signs a preview without delivering it.
 func (backend *Backend) GenerateEvent(_ context.Context, request kickopenapi.EventDeliveryRequest) (kickopenapi.GeneratedEvent, error) {
 	options, err := backend.deliveryOptions(request.EventPayloadRequest)
 	if err != nil {
@@ -49,6 +53,7 @@ func (backend *Backend) GenerateEvent(_ context.Context, request kickopenapi.Eve
 	return generatedDTO(generated, destinationURL), nil
 }
 
+// TriggerEvent composes, signs, and delivers one event.
 func (backend *Backend) TriggerEvent(ctx context.Context, request kickopenapi.EventDeliveryRequest) (kickopenapi.DeliveryResult, error) {
 	options, err := backend.deliveryOptions(request.EventPayloadRequest)
 	if err != nil {

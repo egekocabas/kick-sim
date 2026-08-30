@@ -2,6 +2,7 @@ import { extname } from "node:path";
 
 import { parseSemver } from "../../npm/lib/semver.mjs";
 
+/** Reads and validates the version from a Homebrew Cask or Scoop manifest. */
 export function manifestVersion(path, contents) {
   if (extname(path) === ".rb") {
     const match = /^\s*version\s+"([^"]+)"/m.exec(contents);

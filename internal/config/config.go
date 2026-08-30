@@ -12,8 +12,10 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// FormatVersion is the only workspace configuration version understood by this release.
 const FormatVersion = 1
 
+// Config is the versioned workspace configuration document.
 type Config struct {
 	Version            int                    `yaml:"version" json:"version"`
 	DefaultDestination string                 `yaml:"defaultDestination" json:"defaultDestination"`
@@ -24,6 +26,7 @@ type Config struct {
 	History            History                `yaml:"history" json:"history"`
 }
 
+// Destination describes one named webhook receiver and its transport policy.
 type Destination struct {
 	Class     string `yaml:"class" json:"class"`
 	URL       string `yaml:"url" json:"url"`
@@ -31,17 +34,20 @@ type Destination struct {
 	Redirects string `yaml:"redirects" json:"redirects"`
 }
 
+// Signing identifies the simulator-managed key pair.
 type Signing struct {
 	Mode       string `yaml:"mode" json:"mode"`
 	PrivateKey string `yaml:"privateKey" json:"privateKey"`
 	PublicKey  string `yaml:"publicKey" json:"publicKey"`
 }
 
+// Defaults contains fallback users for event actor roles.
 type Defaults struct {
 	Broadcaster User `yaml:"broadcaster" json:"broadcaster"`
 	Sender      User `yaml:"sender" json:"sender"`
 }
 
+// User contains actor fields copied into generated payloads.
 type User struct {
 	UserID         int64  `yaml:"user_id" json:"user_id"`
 	Username       string `yaml:"username" json:"username"`
@@ -50,10 +56,12 @@ type User struct {
 	ProfilePicture string `yaml:"profile_picture,omitempty" json:"profile_picture,omitempty"`
 }
 
+// Safety restricts the destination classes permitted by the workspace.
 type Safety struct {
 	AllowedDestinationClasses []string `yaml:"allowedDestinationClasses" json:"allowedDestinationClasses"`
 }
 
+// History controls delivery retention and response-body limits.
 type History struct {
 	Enabled              bool   `yaml:"enabled" json:"enabled"`
 	MaxAge               string `yaml:"maxAge" json:"maxAge"`
@@ -62,6 +70,7 @@ type History struct {
 	MaxResponseBodyBytes int    `yaml:"maxResponseBodyBytes" json:"maxResponseBodyBytes"`
 }
 
+// Default returns a safe, loopback-only workspace configuration.
 func Default() Config {
 	return Config{
 		Version:            FormatVersion,
@@ -117,6 +126,7 @@ func Clone(value Config) Config {
 	return cloned
 }
 
+// Load strictly decodes and validates a workspace configuration file.
 func Load(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -132,6 +142,7 @@ func Load(path string) (Config, error) {
 	return value, nil
 }
 
+// Marshal serializes a workspace configuration as YAML.
 func Marshal(value Config) ([]byte, error) {
 	data, err := yaml.Marshal(value)
 	if err != nil {
@@ -140,6 +151,7 @@ func Marshal(value Config) ([]byte, error) {
 	return data, nil
 }
 
+// Validate reports all independently detectable configuration problems.
 func Validate(value Config) error {
 	var problems []error
 	if value.Version != FormatVersion {
@@ -197,6 +209,7 @@ func Validate(value Config) error {
 	return errors.Join(problems...)
 }
 
+// ResolvePath resolves a configured path relative to the workspace unless it is absolute.
 func ResolvePath(workspaceRoot, configuredPath string) string {
 	if filepath.IsAbs(configuredPath) {
 		return filepath.Clean(configuredPath)
@@ -204,6 +217,7 @@ func ResolvePath(workspaceRoot, configuredPath string) string {
 	return filepath.Clean(filepath.Join(workspaceRoot, configuredPath))
 }
 
+// Destination resolves a named destination, using the configured default for an empty name.
 func (value Config) Destination(name string) (Destination, error) {
 	if name == "" {
 		name = value.DefaultDestination

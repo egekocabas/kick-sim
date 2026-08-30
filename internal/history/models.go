@@ -2,12 +2,14 @@ package history
 
 import "time"
 
+// Record groups the three rows persisted for one delivery attempt.
 type Record struct {
 	Run     Run
 	Event   Event
 	Attempt Attempt
 }
 
+// Run identifies one scenario execution.
 type Run struct {
 	ID                    string    `json:"id"`
 	ScenarioDefinitionID  string    `json:"scenarioDefinitionId,omitempty"`
@@ -15,6 +17,7 @@ type Run struct {
 	CreatedAt             time.Time `json:"createdAt"`
 }
 
+// Event is the signed payload retained for a run.
 type Event struct {
 	ID                  string            `json:"id"`
 	RunID               string            `json:"runId"`
@@ -29,6 +32,7 @@ type Event struct {
 	CreatedAt           time.Time         `json:"createdAt"`
 }
 
+// Attempt records one HTTP delivery of a generated event.
 type Attempt struct {
 	ID                 string              `json:"id"`
 	GeneratedEventID   string              `json:"generatedEventId"`
@@ -49,12 +53,14 @@ type Attempt struct {
 	CreatedAt          time.Time           `json:"createdAt"`
 }
 
+// AttemptDetail combines an attempt with its parent event and run.
 type AttemptDetail struct {
 	Run     Run     `json:"run"`
 	Event   Event   `json:"event"`
 	Attempt Attempt `json:"attempt"`
 }
 
+// Activity is the compact delivery summary shown in history listings.
 type Activity struct {
 	AttemptID            string    `json:"attemptId"`
 	RunID                string    `json:"runId"`

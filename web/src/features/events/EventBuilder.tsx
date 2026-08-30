@@ -87,6 +87,8 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
   };
 
   const applyRaw = (value: string) => {
+    // Each edit invalidates older async validations so a slow response cannot
+    // replace the draft with stale JSON.
     const currentValidation = ++validationSequence.current;
     if (validationTimer.current !== undefined) window.clearTimeout(validationTimer.current);
     setRaw(value);

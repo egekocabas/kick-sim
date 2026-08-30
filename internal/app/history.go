@@ -11,10 +11,13 @@ import (
 	"github.com/egekocabas/kick-sim/internal/workspace"
 )
 
+// History opens the existing workspace history database without creating it.
 func (service *Service) History() (*history.Store, error) {
 	return history.OpenExisting(workspace.PathsFor(service.workspaceRoot).Database, service.configuration.History)
 }
 
+// Replay redelivers a retained attempt either byte-for-byte (exact) or with new
+// identifiers, timestamps, and signature metadata (regenerated).
 func (service *Service) Replay(ctx context.Context, attemptID, mode string) (RunResult, error) {
 	store, err := service.History()
 	if err != nil {
