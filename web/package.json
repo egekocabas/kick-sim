@@ -23,6 +23,11 @@
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
+  "overrides": {
+    "orval": {
+      "js-yaml": "4.3.2"
+    }
+  },
   "devDependencies": {
     "@biomejs/biome": "2.5.10",
     "@playwright/test": "1.62.1",

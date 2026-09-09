@@ -53,7 +53,6 @@ homebrew_casks:
     url:
       template: >-
         https://github.com/egekocabas/kick-sim/releases/download/{{ .Tag }}/{{ .ArtifactName }}
-      verified: github.com/egekocabas/kick-sim/
     directory: Casks
     homepage: https://github.com/egekocabas/kick-sim
     description: Local-only simulator for building and testing Kick webhook integrations
