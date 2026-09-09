@@ -242,6 +242,25 @@ jobs:
           cp distribution/homebrew/kick-sim.rb "$tap_path/Casks/kick-sim.rb"
           brew audit --cask --strict kick-sim/ci/kick-sim
 
+  published-package-smoke:
+    name: Published npm smoke (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Pin npm
+        run: npm install --global npm@11.17.0
+      - name: Test release packaging on Windows
+        run: npm test --prefix packaging/npm
+      # Exercise registry installation, which the extracted snapshot skips.
+      # Keep this fixture pinned so CI does not depend on a moving dist-tag.
+      - name: Install published package and verify embedded Studio
+        run: node packaging/npm/scripts/smoke.mjs --version 0.4.2-rc.1
+
   required:
     name: Required CI
     if: always()
@@ -251,6 +270,7 @@ jobs:
       - studio
       - release-snapshot
       - package-smoke
+      - published-package-smoke
     runs-on: ubuntu-latest
     steps:
       - name: Confirm required jobs passed
@@ -261,13 +281,15 @@ jobs:
           STUDIO_RESULT: ${{ needs.studio.result }}
           RELEASE_SNAPSHOT_RESULT: ${{ needs.release-snapshot.result }}
           PACKAGE_SMOKE_RESULT: ${{ needs.package-smoke.result }}
+          PUBLISHED_PACKAGE_SMOKE_RESULT: ${{ needs.published-package-smoke.result }}
         run: |
           for result in \
             "$QUALITY_RESULT" \
             "$TEST_RESULT" \
             "$STUDIO_RESULT" \
             "$RELEASE_SNAPSHOT_RESULT" \
-            "$PACKAGE_SMOKE_RESULT"
+            "$PACKAGE_SMOKE_RESULT" \
+            "$PUBLISHED_PACKAGE_SMOKE_RESULT"
           do
             if [ "$result" != "success" ]; then
               echo "::error::A required CI job completed with result: $result"
