@@ -2,16 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { chmod, cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, resolve } from "node:path";
-
-function run(command, args, options = {}) {
-  const result = spawnSync(command, args, { encoding: "utf8", ...options });
-  if (result.status !== 0) {
-    throw new Error(
-      `${command} ${args.join(" ")} failed:\n${result.stdout}\n${result.stderr}`,
-    );
-  }
-  return result.stdout;
-}
+import { run, runNpm } from "../lib/command.mjs";
 
 function hasExited(child) {
   return child.exitCode !== null || child.signalCode !== null;
@@ -125,8 +116,8 @@ async function main() {
         ...process.env,
         npm_config_cache: resolve(fixture, ".npm-cache"),
       };
-      run("npm", ["init", "--yes"], { cwd: fixture, env: npmEnvironment });
-      run("npm", ["install", "--ignore-scripts", `kick-sim@${requestedVersion}`], {
+      runNpm(["init", "--yes"], { cwd: fixture, env: npmEnvironment });
+      runNpm(["install", "--ignore-scripts", `kick-sim@${requestedVersion}`], {
         cwd: fixture,
         env: npmEnvironment,
       });

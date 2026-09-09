@@ -1,4 +1,10 @@
 .idea
+# Local credentials and runtime state must not enter source control.
+.env
+.env.*
+!.env.example
+!.env.sample
+.runtime/
 /.kick-sim/
 /kick-sim
 /dist/
