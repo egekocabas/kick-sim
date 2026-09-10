@@ -150,6 +150,8 @@ See [Architecture](docs/architecture.md) for dependency direction, orchestration
 - [Workspace and authored-format contract](docs/workspace-contract.md)
 - [Compatibility and provenance](docs/compatibility.md)
 - [Security model](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Release and package publishing](docs/releasing.md)
 - [Committed Studio OpenAPI document](web/openapi.json)
 
