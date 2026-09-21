@@ -75,6 +75,11 @@ func TestHistoryExplainsResponsesAndTransportErrors(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			// Socket error wording differs across operating systems. Verify that
+			// history preserves the actual delivery error instead of a Unix phrase.
+			if status == 0 && !strings.Contains(output, "Error: "+sendErr.Error()+"\n") {
+				t.Fatalf("history did not preserve transport error %q: %s", sendErr, output)
+			}
 			input := string(signing.SignatureInput(generated.MessageID, generated.MessageTimestamp, []byte(generated.RawBody)))
 			if !strings.Contains(output, "Signature input:\n"+input) {
 				t.Fatalf("incorrect signature input: %s", output)
@@ -83,7 +88,7 @@ func TestHistoryExplainsResponsesAndTransportErrors(t *testing.T) {
 				204: {"HTTP 204 No Content", "X-Receiver: regression", "(empty — HTTP 204 No Content)"},
 				200: {"HTTP 200 OK", "Response body:\n(empty)"},
 				401: {"HTTP 401 Unauthorized", "rejected by receiver"},
-				0:   {"no HTTP response", "No HTTP response received", "Error: ", "connection refused"},
+				0:   {"no HTTP response", "No HTTP response received"},
 			}[status] {
 				if !strings.Contains(output, want) {
 					t.Errorf("missing %q in %s", want, output)
