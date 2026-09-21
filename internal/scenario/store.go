@@ -95,11 +95,11 @@ func (store *Store) Get(id string) (Entry, error) {
 
 // Copy creates a custom scenario from an existing scenario's complete source.
 func (store *Store) Copy(sourceID, targetID, createdWith string) (Entry, error) {
-	return store.SaveAsCopy(sourceID, targetID, nil, createdWith)
+	return store.SaveAsCopy(sourceID, targetID, "", nil, createdWith)
 }
 
 // SaveAsCopy creates a custom scenario and optionally replaces a single-request payload.
-func (store *Store) SaveAsCopy(sourceID, targetID string, payload map[string]any, createdWith string) (Entry, error) {
+func (store *Store) SaveAsCopy(sourceID, targetID, name string, payload map[string]any, createdWith string) (Entry, error) {
 	if strings.HasPrefix(targetID, "builtin:") {
 		return Entry{}, errors.New("custom scenario ID cannot use the reserved builtin: prefix")
 	}
@@ -124,8 +124,15 @@ func (store *Store) SaveAsCopy(sourceID, targetID string, payload map[string]any
 			return Entry{}, errors.New("timeline scenarios must be copied from their complete source")
 		}
 		value.Request.Payload = events.DeepCopyMap(payload)
-		value.Request.Payload["message_id"] = "{{ ulid() }}"
-		value.Request.Payload["created_at"] = "{{ now() }}"
+		if _, exists := value.Request.Payload["message_id"]; exists {
+			value.Request.Payload["message_id"] = "{{ ulid() }}"
+		}
+		if _, exists := value.Request.Payload["created_at"]; exists {
+			value.Request.Payload["created_at"] = "{{ now() }}"
+		}
+	}
+	if name = strings.TrimSpace(name); name != "" {
+		value.Name = name
 	}
 	value.Metadata = Metadata{Source: sourceID, SourceVersion: source.SourceVersion, CreatedWith: createdWith}
 	if err := value.Validate(store.registry, store.configuration, store.actors); err != nil {
@@ -174,7 +181,7 @@ func (store *Store) SaveSource(id, expectedRevision string, source []byte) (Entr
 }
 
 // SaveSourceAsCopy validates submitted source and saves it under a new custom identifier.
-func (store *Store) SaveSourceAsCopy(sourceID, targetID string, source []byte, createdWith string) (Entry, error) {
+func (store *Store) SaveSourceAsCopy(sourceID, targetID, name string, source []byte, createdWith string) (Entry, error) {
 	if strings.HasPrefix(targetID, "builtin:") {
 		return Entry{}, errors.New("custom scenario ID cannot use the reserved builtin: prefix")
 	}
@@ -184,6 +191,9 @@ func (store *Store) SaveSourceAsCopy(sourceID, targetID string, source []byte, c
 	value, err := store.parseAndValidate(source)
 	if err != nil {
 		return Entry{}, err
+	}
+	if name = strings.TrimSpace(name); name != "" {
+		value.Name = name
 	}
 	value.Metadata = Metadata{Source: sourceID, SourceVersion: 1, CreatedWith: createdWith}
 	data, err := yaml.Marshal(value)

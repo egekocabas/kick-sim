@@ -72,8 +72,12 @@ func (backend *Backend) deliveryOptions(request kickopenapi.EventPayloadRequest)
 		return app.PayloadOptions{}, err
 	}
 	payload := events.DeepCopyMap(request.Payload)
-	payload["message_id"] = "{{ ulid() }}"
-	payload["created_at"] = "{{ now() }}"
+	if _, exists := payload["message_id"]; exists {
+		payload["message_id"] = "{{ ulid() }}"
+	}
+	if _, exists := payload["created_at"]; exists {
+		payload["created_at"] = "{{ now() }}"
+	}
 	return app.PayloadOptions{EventType: request.EventType, EventVersion: request.EventVersion, Scenario: payload}, nil
 }
 

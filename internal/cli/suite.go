@@ -36,14 +36,15 @@ func newSuiteListCommand(environment *environment) *cobra.Command {
 		if environment.output == "json" {
 			return environment.writeJSON(entries)
 		}
+		table := newTable(environment.stdout, "SUITE", "SOURCE", "NAME")
 		for _, entry := range entries {
 			kind := "custom"
 			if entry.BuiltIn {
 				kind = "built-in"
 			}
-			fmt.Fprintf(environment.stdout, "%s\t%s\t%s\n", entry.ID, kind, entry.Suite.Name)
+			fmt.Fprintf(table, "%s\t%s\t%s\n", entry.ID, kind, entry.Suite.Name)
 		}
-		return nil
+		return table.Flush()
 	}}
 }
 
@@ -108,12 +109,16 @@ func newSuiteRunCommand(environment *environment) *cobra.Command {
 				return err
 			}
 		} else {
+			table := newTable(environment.stdout, "RESULT", "SCENARIO", "ERROR")
 			for _, result := range report.Cases {
 				status := "PASS"
 				if !result.Passed {
 					status = "FAIL"
 				}
-				fmt.Fprintf(environment.stdout, "%s\t%s\t%s\n", status, result.ScenarioID, result.Error)
+				fmt.Fprintf(table, "%s\t%s\t%s\n", status, result.ScenarioID, result.Error)
+			}
+			if err := table.Flush(); err != nil {
+				return err
 			}
 			fmt.Fprintf(environment.stdout, "Suite %s: %d passed, %d failed (%.1f%%)\n", entry.ID, report.PassedCases, report.FailedCases, report.PassedPercent)
 		}

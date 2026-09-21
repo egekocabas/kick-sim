@@ -9,6 +9,7 @@ import type { ScenarioCopyRequestPayload } from './scenarioCopyRequestPayload';
 export interface ScenarioCopyRequest {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
+  name?: string;
   payload: ScenarioCopyRequestPayload;
   /** @minLength 1 */
   sourceId: string;

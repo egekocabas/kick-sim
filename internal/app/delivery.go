@@ -34,9 +34,18 @@ func (service *Service) ApplyDeliveryFailure(generated Generated, failure string
 	case "modified-body":
 		generated.RawBody += " "
 		generated.body = []byte(generated.RawBody)
-	case "malformed-json":
-		generated.RawBody = "{"
-		generated.body = []byte(generated.RawBody)
+	case "stale-timestamp", "malformed-json":
+		if failure == "stale-timestamp" {
+			timestamp, err := time.Parse(time.RFC3339Nano, generated.MessageTimestamp)
+			if err != nil {
+				return Generated{}, fmt.Errorf("parse message timestamp: %w", err)
+			}
+			generated.MessageTimestamp = timestamp.Add(-24 * time.Hour).Format(time.RFC3339Nano)
+			generated.Headers[delivery.HeaderTimestamp] = generated.MessageTimestamp
+		} else {
+			generated.RawBody = "{"
+			generated.body = []byte(generated.RawBody)
+		}
 		privateKey, err := service.privateKey()
 		if err != nil {
 			return Generated{}, err

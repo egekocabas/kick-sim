@@ -55,10 +55,11 @@ func newEventListCommand(environment *environment) *cobra.Command {
 			if environment.output == "json" {
 				return environment.writeJSON(definitions)
 			}
+			table := newTable(environment.stdout, "EVENT", "DESCRIPTION")
 			for _, definition := range definitions {
-				fmt.Fprintf(environment.stdout, "%s@%d\t%s\n", definition.Type, definition.Version, definition.Description)
+				fmt.Fprintf(table, "%s@%d\t%s\n", definition.Type, definition.Version, definition.Description)
 			}
-			return nil
+			return table.Flush()
 		},
 	}
 }

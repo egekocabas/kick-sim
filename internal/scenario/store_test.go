@@ -66,7 +66,7 @@ func TestBuiltInsValidateAndCopyToCustomScenario(t *testing.T) {
 		modified[key] = value
 	}
 	modified["content"] = "saved working copy"
-	saved, err := store.SaveAsCopy(source.ID, "working/basic", modified, "kick-sim@test")
+	saved, err := store.SaveAsCopy(source.ID, "working/basic", "", modified, "kick-sim@test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,14 +219,14 @@ func TestSaveSourceAsCopyUsesCanonicalFormattingAndDoesNotOverwrite(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	copy, err := store.SaveSourceAsCopy(source.ID, "editing/source-copy", source.Source, "kick-sim@test")
+	copy, err := store.SaveSourceAsCopy(source.ID, "editing/source-copy", "", source.Source, "kick-sim@test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if copy.Scenario.Metadata.Source != source.ID || copy.Scenario.Metadata.CreatedWith != "kick-sim@test" {
 		t.Fatalf("copy metadata = %#v", copy.Scenario.Metadata)
 	}
-	if _, err := store.SaveSourceAsCopy(source.ID, copy.ID, source.Source, "kick-sim@test"); err == nil {
+	if _, err := store.SaveSourceAsCopy(source.ID, copy.ID, "", source.Source, "kick-sim@test"); err == nil {
 		t.Fatal("SaveSourceAsCopy() overwrote an existing scenario")
 	}
 }

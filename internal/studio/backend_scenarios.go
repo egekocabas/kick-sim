@@ -45,7 +45,7 @@ func (backend *Backend) SaveScenarioCopy(_ context.Context, request kickopenapi.
 	if err := backend.service.EventRegistry().Validate(source.Scenario.Request.Event.Type, source.Scenario.Request.Event.Version, request.Payload); err != nil {
 		return kickopenapi.ScenarioDetail{}, err
 	}
-	entry, err := backend.scenarios.SaveAsCopy(request.SourceID, request.TargetID, request.Payload, "kick-sim@"+version.Version)
+	entry, err := backend.scenarios.SaveAsCopy(request.SourceID, request.TargetID, request.Name, request.Payload, "kick-sim@"+version.Version)
 	if err != nil {
 		return kickopenapi.ScenarioDetail{}, err
 	}
@@ -63,7 +63,7 @@ func (backend *Backend) SaveScenarioSource(_ context.Context, request kickopenap
 
 // SaveScenarioSourceCopy validates edited source and stores it as a new scenario.
 func (backend *Backend) SaveScenarioSourceCopy(_ context.Context, request kickopenapi.ScenarioSourceCopyRequest) (kickopenapi.ScenarioDetail, error) {
-	entry, err := backend.scenarios.SaveSourceAsCopy(request.SourceID, request.TargetID, []byte(request.Source), "kick-sim@"+version.Version)
+	entry, err := backend.scenarios.SaveSourceAsCopy(request.SourceID, request.TargetID, request.Name, []byte(request.Source), "kick-sim@"+version.Version)
 	if err != nil {
 		return kickopenapi.ScenarioDetail{}, err
 	}
@@ -105,6 +105,10 @@ func (backend *Backend) RunScenario(ctx context.Context, request kickopenapi.Sce
 		subscriptionID = entry.Scenario.Request.Delivery.SubscriptionID
 	}
 	generated, err := backend.service.Generate(options, subscriptionID)
+	if err != nil {
+		return kickopenapi.DeliveryResult{}, err
+	}
+	generated, err = backend.service.ApplyDeliveryFailure(generated, entry.Scenario.Request.Delivery.Failure)
 	if err != nil {
 		return kickopenapi.DeliveryResult{}, err
 	}

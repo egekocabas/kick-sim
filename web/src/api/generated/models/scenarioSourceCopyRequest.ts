@@ -8,6 +8,7 @@
 export interface ScenarioSourceCopyRequest {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
+  name?: string;
   /** @minLength 1 */
   source: string;
   /** @minLength 1 */

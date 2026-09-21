@@ -8,6 +8,7 @@ import {
   updateScenarioSource,
 } from "../../api/generated/client";
 import type { ScenarioDetail, ScenarioSummary } from "../../api/generated/models";
+import { ScenarioCopyDialog, type ScenarioCopyValues } from "../../components/ScenarioCopyDialog";
 import { Notice, QueryState, Section } from "../../components/ui";
 import { errorMessage, failureMessage, successful } from "../../lib/api";
 import { queryKeys } from "../../lib/queryKeys";
@@ -16,6 +17,7 @@ type JSONObject = Record<string, unknown>;
 
 export function ScenariosPage({ onOpen }: { onOpen: (id: string) => void }) {
   const queryClient = useQueryClient();
+  const [copySource, setCopySource] = useState<ScenarioSummary>();
   const [editingID, setEditingID] = useState("");
   const query = useQuery({
     queryKey: queryKeys.scenarios,
@@ -26,10 +28,10 @@ export function ScenariosPage({ onOpen }: { onOpen: (id: string) => void }) {
     refetchInterval: 1_500,
   });
   const duplicate = useMutation({
-    mutationFn: async ({ item, id }: { item: ScenarioSummary; id: string }) => {
+    mutationFn: async ({ item, values }: { item: ScenarioSummary; values: ScenarioCopyValues }) => {
       const detail = successful<ScenarioDetail>(await getScenario({ id: item.id }));
       return successful<ScenarioDetail>(
-        await duplicateScenario({ sourceId: item.id, targetId: id, payload: detail.draftPayload as JSONObject }),
+        await duplicateScenario({ sourceId: item.id, ...values, payload: detail.draftPayload as JSONObject }),
       );
     },
     onSuccess: async () => queryClient.invalidateQueries({ queryKey: queryKeys.scenarios }),
@@ -59,10 +61,7 @@ export function ScenariosPage({ onOpen }: { onOpen: (id: string) => void }) {
                 </button>
                 <button
                   disabled={item.valid === false || duplicate.isPending}
-                  onClick={() => {
-                    const id = window.prompt("New scenario ID", `${item.id}-copy`);
-                    if (id) duplicate.mutate({ item, id });
-                  }}
+                  onClick={() => setCopySource(item)}
                   type="button"
                 >
                   Duplicate
@@ -78,6 +77,13 @@ export function ScenariosPage({ onOpen }: { onOpen: (id: string) => void }) {
         </div>
         {duplicate.error && <Notice tone="error">{errorMessage(duplicate.error)}</Notice>}
       </Section>
+      {copySource && (
+        <ScenarioCopyDialog
+          source={copySource}
+          onSave={(values) => duplicate.mutateAsync({ item: copySource, values })}
+          onClose={() => setCopySource(undefined)}
+        />
+      )}
       {editingID && <ScenarioSourceEditor id={editingID} onClose={() => setEditingID("")} onSelect={setEditingID} />}
     </div>
   );
@@ -99,6 +105,7 @@ function ScenarioSourceEditor({
     refetchInterval: 1_500,
   });
   const loadedID = useRef("");
+  const [copyOpen, setCopyOpen] = useState(false);
   const [draftSource, setDraftSource] = useState("");
   const [baselineRevision, setBaselineRevision] = useState("");
   const [ignoredRevision, setIgnoredRevision] = useState("");
@@ -146,10 +153,8 @@ function ScenarioSourceEditor({
     },
   });
   const saveCopy = useMutation({
-    mutationFn: async (targetID: string) =>
-      successful<ScenarioDetail>(
-        await saveScenarioSourceCopy({ sourceId: id, targetId: targetID, source: draftSource }),
-      ),
+    mutationFn: async (values: ScenarioCopyValues) =>
+      successful<ScenarioDetail>(await saveScenarioSourceCopy({ sourceId: id, ...values, source: draftSource })),
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.scenarios });
       onSelect(saved.id);
@@ -166,6 +171,13 @@ function ScenarioSourceEditor({
       title={`Edit source · ${id}`}
       hint={`${detail?.sourceFormat?.toUpperCase() ?? "Source"} · exact file text`}
     >
+      {copyOpen && (
+        <ScenarioCopyDialog
+          source={{ id, name: detail?.name ?? id }}
+          onSave={saveCopy.mutateAsync}
+          onClose={() => setCopyOpen(false)}
+        />
+      )}
       {query.isError && (
         <Notice tone="error">
           Source file is no longer available at this scenario ID. Your draft is still open and can be saved as a copy.
@@ -230,14 +242,7 @@ function ScenarioSourceEditor({
               >
                 Save source
               </button>
-              <button
-                disabled={busy || !draftSource}
-                onClick={() => {
-                  const targetID = window.prompt("New scenario ID", `${id}-copy`);
-                  if (targetID) saveCopy.mutate(targetID);
-                }}
-                type="button"
-              >
+              <button disabled={busy || !draftSource} onClick={() => setCopyOpen(true)} type="button">
                 Save as copy
               </button>
               <button onClick={onClose} type="button">

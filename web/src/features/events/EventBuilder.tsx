@@ -9,6 +9,7 @@ import {
   validateEvent,
 } from "../../api/generated/client";
 import type { DeliveryResult, EventDeliveryRequest, ScenarioDetail, ScenarioSummary } from "../../api/generated/models";
+import { ScenarioCopyDialog, type ScenarioCopyValues } from "../../components/ScenarioCopyDialog";
 import { Notice, QueryState } from "../../components/ui";
 import { errorMessage, successful } from "../../lib/api";
 import { queryKeys } from "../../lib/queryKeys";
@@ -31,6 +32,7 @@ function isJSONObject(value: unknown): value is JSONObject {
 
 export function EventBuilder({ initialScenarioID }: { initialScenarioID: string | undefined }) {
   const queryClient = useQueryClient();
+  const [copyOpen, setCopyOpen] = useState(false);
   const [view, setView] = useState<EditorView>("form");
   const [selectedID, setSelectedID] = useState(initialScenarioID ?? "");
   const [draft, setDraft] = useState<JSONObject>({});
@@ -162,11 +164,9 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
     },
   });
   const saveCopy = useMutation({
-    mutationFn: async (targetID: string) => {
+    mutationFn: async (values: ScenarioCopyValues) => {
       if (!scenario) throw new Error("Select a valid scenario first");
-      return successful<ScenarioDetail>(
-        await duplicateScenario({ sourceId: scenario.id, targetId: targetID, payload: draft }),
-      );
+      return successful<ScenarioDetail>(await duplicateScenario({ sourceId: scenario.id, ...values, payload: draft }));
     },
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.scenarios });
@@ -179,6 +179,9 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
 
   return (
     <>
+      {copyOpen && scenario && (
+        <ScenarioCopyDialog source={scenario} onSave={saveCopy.mutateAsync} onClose={() => setCopyOpen(false)} />
+      )}
       <section className="context-bar">
         <div>
           <small>Scenario</small>
@@ -294,10 +297,7 @@ export function EventBuilder({ initialScenarioID }: { initialScenarioID: string 
           <button
             className="secondary-wide"
             disabled={busy || Boolean(rawError) || validatingRaw || !scenario}
-            onClick={() => {
-              const targetID = scenario ? window.prompt("New scenario ID", `${scenario.id}-copy`) : null;
-              if (targetID) saveCopy.mutate(targetID);
-            }}
+            onClick={() => setCopyOpen(true)}
             type="button"
           >
             Save as copy

@@ -258,3 +258,36 @@ func TestBroadcasterIDRequiresPositiveInteger(t *testing.T) {
 		}
 	}
 }
+
+func TestStaleTimestampRemainsCorrectlySigned(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".kick-sim")
+	if _, err := workspace.Init(root); err != nil {
+		t.Fatal(err)
+	}
+	service, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	generated, err := service.GenerateAt(PayloadOptions{EventType: events.ChatMessageSentType, EventVersion: 1}, "", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale, err := service.ApplyDeliveryFailure(generated, "stale-timestamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stale.MessageTimestamp != now.Add(-24*time.Hour).Format(time.RFC3339Nano) || stale.Headers[delivery.HeaderTimestamp] != stale.MessageTimestamp {
+		t.Fatalf("stale timestamp: %+v", stale)
+	}
+	if generated.MessageTimestamp != now.Format(time.RFC3339Nano) || generated.Headers[delivery.HeaderTimestamp] != generated.MessageTimestamp {
+		t.Fatal("original event mutated")
+	}
+	privateKey, err := service.privateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := signing.Verify(&privateKey.PublicKey, stale.MessageID, stale.MessageTimestamp, []byte(stale.RawBody), stale.Headers[delivery.HeaderSignature]); err != nil {
+		t.Fatal(err)
+	}
+}

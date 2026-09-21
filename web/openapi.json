@@ -1129,6 +1129,9 @@
             "readOnly": true,
             "type": "string"
           },
+          "name": {
+            "type": "string"
+          },
           "payload": {
             "additionalProperties": {},
             "type": "object"
@@ -1298,6 +1301,9 @@
             ],
             "format": "uri",
             "readOnly": true,
+            "type": "string"
+          },
+          "name": {
             "type": "string"
           },
           "source": {
