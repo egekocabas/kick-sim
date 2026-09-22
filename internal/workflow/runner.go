@@ -70,9 +70,6 @@ func runSingle(ctx context.Context, service *app.Service, entry scenario.Entry, 
 	if options.Payload != nil {
 		payload = options.Payload
 	}
-	if request.Delivery.Failure == "stale-timestamp" {
-		logicalTime = logicalTime.Add(-24 * time.Hour)
-	}
 	generated, err := service.GenerateAt(app.PayloadOptions{
 		EventType: request.Event.Type, EventVersion: request.Event.Version, Scenario: payload,
 		Omit: request.Omit, Actors: entry.Scenario.Actors, ScenarioDefinitionID: entry.ID,

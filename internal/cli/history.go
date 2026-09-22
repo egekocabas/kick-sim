@@ -2,9 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"net/http"
 	"sort"
 
 	"github.com/egekocabas/kick-sim/internal/history"
+	"github.com/egekocabas/kick-sim/internal/signing"
 	"github.com/spf13/cobra"
 )
 
@@ -45,14 +47,15 @@ func newHistoryListCommand(environment *environment) *cobra.Command {
 				_, err = fmt.Fprintln(environment.stdout, "No retained delivery activity")
 				return err
 			}
+			table := newTable(environment.stdout, "ATTEMPT", "EVENT", "STATUS", "OUTCOME", "DURATION")
 			for _, item := range items {
 				status := "-"
 				if item.Status != 0 {
 					status = fmt.Sprint(item.Status)
 				}
-				fmt.Fprintf(environment.stdout, "%s\t%s@%d\t%s\t%s\t%.2fms\n", item.AttemptID, item.EventType, item.EventVersion, status, item.Outcome, item.DurationMS)
+				fmt.Fprintf(table, "%s\t%s@%d\t%s\t%s\t%.2fms\n", item.AttemptID, item.EventType, item.EventVersion, status, item.Outcome, item.DurationMS)
 			}
-			return nil
+			return table.Flush()
 		},
 	}
 	command.Flags().IntVar(&limit, "limit", 50, "maximum activity rows")
@@ -73,10 +76,14 @@ func newHistoryShowCommand(environment *environment) *cobra.Command {
 			if environment.output == "json" {
 				return environment.writeJSON(detail)
 			}
+			status := "— (no HTTP response)"
+			if detail.Attempt.ResponseStatus != 0 {
+				status = fmt.Sprintf("%d %s", detail.Attempt.ResponseStatus, http.StatusText(detail.Attempt.ResponseStatus))
+			}
 			fmt.Fprintf(environment.stdout,
-				"Attempt: %s\nEvent: %s@%d\nOutcome: %s\nStatus: %d\nDestination: %s\nDuration: %.2fms\n\nHeaders:\n",
+				"Attempt: %s\nEvent: %s@%d\nOutcome: %s\nStatus: %s\nDestination: %s\nDuration: %.2fms\n\nHeaders:\n",
 				detail.Attempt.ID, detail.Event.EventType, detail.Event.EventVersion,
-				detail.Attempt.Outcome, detail.Attempt.ResponseStatus,
+				detail.Attempt.Outcome, status,
 				detail.Attempt.URL, detail.Attempt.DurationMS,
 			)
 			keys := make([]string, 0, len(detail.Attempt.RequestHeaders))
@@ -87,10 +94,40 @@ func newHistoryShowCommand(environment *environment) *cobra.Command {
 			for _, key := range keys {
 				fmt.Fprintf(environment.stdout, "%s: %s\n", key, detail.Attempt.RequestHeaders[key])
 			}
-			fmt.Fprintf(environment.stdout, "\nSignature input:\n%s%s\n\nRaw body:\n%s\n\nResponse:\n%s\n",
-				detail.Event.Headers["Kick-Event-Message-Id"], detail.Event.MessageTimestamp,
-				detail.Event.RawBody, detail.Attempt.ResponseBody,
+			fmt.Fprintf(environment.stdout, "\nSignature input:\n%s\n\nRaw body:\n%s\n\nResponse:\n",
+				signing.SignatureInput(detail.Attempt.RequestHeaders["Kick-Event-Message-Id"], detail.Attempt.RequestHeaders["Kick-Event-Message-Timestamp"], []byte(detail.Event.RawBody)),
+				detail.Event.RawBody,
 			)
+			if detail.Attempt.Error != "" {
+				fmt.Fprintf(environment.stdout, "Error: %s\n", detail.Attempt.Error)
+			}
+			if detail.Attempt.ResponseStatus == 0 {
+				fmt.Fprintln(environment.stdout, "No HTTP response received. Check that the receiver is running at the destination URL.")
+				return nil
+			}
+			fmt.Fprintf(environment.stdout, "HTTP %s\n", status)
+			keys = keys[:0]
+			for key := range detail.Attempt.ResponseHeaders {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				for _, value := range detail.Attempt.ResponseHeaders[key] {
+					fmt.Fprintf(environment.stdout, "%s: %s\n", key, value)
+				}
+			}
+			fmt.Fprintln(environment.stdout, "\nResponse body:")
+			switch {
+			case detail.Attempt.ResponseBody != "":
+				fmt.Fprintln(environment.stdout, detail.Attempt.ResponseBody)
+			case detail.Attempt.ResponseStatus == http.StatusNoContent:
+				fmt.Fprintln(environment.stdout, "(empty — HTTP 204 No Content)")
+			default:
+				fmt.Fprintln(environment.stdout, "(empty)")
+			}
+			if detail.Attempt.ResponseTruncated {
+				fmt.Fprintln(environment.stdout, "(response body truncated)")
+			}
 			return nil
 		},
 	}

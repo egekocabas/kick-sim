@@ -37,6 +37,7 @@ func newScenarioListCommand(environment *environment) *cobra.Command {
 			if environment.output == "json" {
 				return environment.writeJSON(entries)
 			}
+			table := newTable(environment.stdout, "SCENARIO", "SOURCE", "NAME")
 			for _, entry := range entries {
 				kind := "custom"
 				if entry.BuiltIn {
@@ -46,9 +47,9 @@ func newScenarioListCommand(environment *environment) *cobra.Command {
 				if len(entry.ValidationErrors) > 0 {
 					name = "invalid: " + entry.ValidationErrors[0]
 				}
-				fmt.Fprintf(environment.stdout, "%s\t%s\t%s\n", entry.ID, kind, name)
+				fmt.Fprintf(table, "%s\t%s\t%s\n", entry.ID, kind, name)
 			}
-			return nil
+			return table.Flush()
 		},
 	}
 }
@@ -163,8 +164,12 @@ func newScenarioRunCommand(environment *environment) *cobra.Command {
 						return err
 					}
 				} else {
+					table := newTable(environment.stdout, "STEP", "EVENT", "STATUS", "OUTCOME")
 					for _, delivery := range report.Deliveries {
-						fmt.Fprintf(environment.stdout, "step %d.%d\t%s@%d\tHTTP %d\t%s\n", delivery.Step, delivery.Iteration, delivery.Result.EventType, delivery.Result.EventVersion, delivery.Result.Status, delivery.Result.Outcome)
+						fmt.Fprintf(table, "%d.%d\t%s@%d\tHTTP %d\t%s\n", delivery.Step, delivery.Iteration, delivery.Result.EventType, delivery.Result.EventVersion, delivery.Result.Status, delivery.Result.Outcome)
+					}
+					if err := table.Flush(); err != nil {
+						return err
 					}
 					fmt.Fprintf(environment.stdout, "Workflow %s: %d deliveries\n", entry.ID, len(report.Deliveries))
 				}
@@ -191,6 +196,10 @@ func newScenarioRunCommand(environment *environment) *cobra.Command {
 				subscriptionID = entry.Scenario.Request.Delivery.SubscriptionID
 			}
 			generated, err := service.Generate(options, subscriptionID)
+			if err != nil {
+				return scenarioError(err)
+			}
+			generated, err = service.ApplyDeliveryFailure(generated, entry.Scenario.Request.Delivery.Failure)
 			if err != nil {
 				return scenarioError(err)
 			}

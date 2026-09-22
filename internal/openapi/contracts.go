@@ -165,6 +165,7 @@ type ScenarioDetail struct {
 
 // ScenarioCopyRequest creates a custom scenario working copy.
 type ScenarioCopyRequest struct {
+	Name     string         `json:"name,omitempty"`
 	SourceID string         `json:"sourceId" minLength:"1"`
 	TargetID string         `json:"targetId" minLength:"1"`
 	Payload  map[string]any `json:"payload"`
@@ -179,6 +180,7 @@ type ScenarioSourceSaveRequest struct {
 
 // ScenarioSourceCopyRequest saves edited source under a new scenario identifier.
 type ScenarioSourceCopyRequest struct {
+	Name     string `json:"name,omitempty"`
 	SourceID string `json:"sourceId" minLength:"1"`
 	TargetID string `json:"targetId" minLength:"1"`
 	Source   string `json:"source" minLength:"1"`

@@ -75,6 +75,8 @@ The generated configuration targets `http://127.0.0.1:3000/webhooks/kick`. When 
 go run ./examples/receiver
 ```
 
+The example receiver verifies signatures and rejects timestamps outside a five-minute window. Keep it running while sending events or running `kick-sim suite run builtin:security`.
+
 Send it a signed built-in scenario from another terminal:
 
 ```sh
@@ -89,6 +91,10 @@ kick-sim studio
 ```
 
 Studio listens on `127.0.0.1:4321`, opens your browser, and uses the same filesystem workspace and delivery history as the CLI.
+
+A `connection refused` error means the receiver is not accepting connections at the destination host and port. Start your receiver and point `--destination-url` at its actual webhook URL; this flag does not start a receiver. The example above listens on port `3000`, so an override to port `8080` needs a receiver on that port.
+
+HTTP `204 No Content` is a successful response with no body. Use `kick-sim history show <attempt-id>` to inspect response headers, empty-body explanations, and any retained delivery error.
 
 ## Common workflows
 

@@ -14,6 +14,12 @@ function deferred<T>() {
 }
 
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL) => {
@@ -132,7 +138,7 @@ describe("event builder request state", () => {
       id: "stable/basic-message",
     };
     let scenarios = [scenario];
-    vi.spyOn(window, "prompt").mockReturnValue(saved.id);
+
     vi.stubGlobal(
       "fetch",
       vi.fn((input: RequestInfo | URL) => {
@@ -153,6 +159,10 @@ describe("event builder request state", () => {
     const save = (await screen.findByRole("button", { name: "Save as copy" })) as HTMLButtonElement;
     await waitFor(() => expect(save.disabled).toBe(false));
     fireEvent.click(save);
+    expect((screen.getByLabelText("Scenario ID") as HTMLInputElement).value).toBe("chat/basic-message-copy");
+    fireEvent.change(screen.getByLabelText("Scenario ID"), { target: { value: saved.id } });
+    fireEvent.change(screen.getByLabelText("Scenario name"), { target: { value: "Saved copy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save copy" }));
 
     await waitFor(() => expect((screen.getByLabelText("Scenario") as HTMLSelectElement).value).toBe(saved.id));
     await waitFor(() => expect((screen.getByLabelText("Content") as HTMLInputElement).value).toBe("Saved copy"));

@@ -875,3 +875,40 @@ button:disabled {
     display: none;
   }
 }
+
+.studio-dialog {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: #e9f2ed;
+  background: var(--panel-raised);
+  box-shadow: 0 24px 80px #0009;
+}
+.studio-dialog::backdrop {
+  background: #000a;
+  backdrop-filter: blur(4px);
+}
+.studio-dialog h2 {
+  margin: 0 0 12px;
+}
+.studio-dialog p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.studio-dialog label {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+.studio-dialog input {
+  width: 100%;
+}
+.studio-dialog .dialog-hint {
+  font-size: 12px;
+}
+.dialog-actions {
+  justify-content: flex-end;
+  margin-top: 24px;
+}
