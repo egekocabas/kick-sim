@@ -19,9 +19,9 @@
     "api:generate": "orval --config ./orval.config.ts && node ./scripts/normalize-generated.mjs"
   },
   "dependencies": {
-    "@tanstack/react-query": "5.102.2",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "@tanstack/react-query": "5.104.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   },
   "overrides": {
     "orval": {
@@ -29,16 +29,16 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.10",
-    "@playwright/test": "1.62.1",
-    "@testing-library/react": "16.3.2",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.5",
-    "@vitejs/plugin-react": "6.1.0",
-    "jsdom": "30.0.1",
-    "orval": "8.26.0",
+    "@biomejs/biome": "2.5.14",
+    "@playwright/test": "1.63.0",
+    "@testing-library/react": "16.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "jsdom": "30.1.1",
+    "orval": "8.38.0",
     "typescript": "7.0.2",
-    "vite": "8.2.2",
-    "vitest": "4.1.11"
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
   }
 }
